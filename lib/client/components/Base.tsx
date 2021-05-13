@@ -1,5 +1,18 @@
 import { Component } from 'react';
 
-export default class Base extends Component {
-    
+export interface Props {
+
+}
+
+export interface State {
+
+}
+
+export default class Base<PropType extends Props = {}, StateType extends State = {}> extends Component<PropType, StateType> {
+
+    constructor(props){
+        super(props);
+        this.state = {};
+    }
+
 }
