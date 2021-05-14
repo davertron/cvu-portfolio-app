@@ -11,26 +11,26 @@ interface LayoutProps {
 }
 
 export default function Layout(props: LayoutProps){
-
     const [session, loading] = props.sessionState || useSession();
+    const router = useRouter();
+    let [success, redirect] = [true, ''];
+
+    useEffect(() => {
+        if(!success){
+            router.push(redirect);
+        }
+    }, [success, redirect])
 
     if(loading){
         return (
             <p>Loading...</p>
         );
     }else{
-        const router = useRouter();
-        const [success, redirect] = useAuth(props.authorization, session);
-
-        if(!success){
-            useEffect(() => {
-                router.push(redirect);
-            });
-        }
+        [success, redirect] = useAuth(props.authorization, session);
 
         return (
             <>
-                <Nav/>
+                <Nav session={session}/>
                 <div className="container px-7 py-6 font-light">{props.children}</div>
             </>
         );

@@ -1,14 +1,35 @@
-import { classNames } from '../util';
+import { classNames, homepage } from '../util';
 import { Fragment, useState, useEffect } from 'react';
-import { Disclosure, Menu, Transition } from '@headlessui/react';
-import { MdClose, MdMenu, MdNotifications } from 'react-icons/md';
+import { Disclosure, Menu } from '@headlessui/react';
+import { MdClose, MdMenu, MdNotifications, MdAdd } from 'react-icons/md';
+import { Session, useSession } from 'next-auth/client';
 
-const staticNav = [
-    {name: 'About', href: '/about', current: false},
-    {name: 'Support', href: '/support', current: false}
-];
+export interface NavProps {
+    sessionState?: [Session, boolean]
+}
 
-export default function Nav(){
+export default function Nav(props: NavProps){
+    const [session, loading] = props.sessionState || useSession();
+    let nav = [];
+
+    if(!loading){
+        if(session){
+            nav = [
+                {name: <><MdAdd className="inline mr-1"/>New Collection</>, href: '/collection/new', cta: true},
+                {name: 'Collections', href: '/collections'},
+                {name: 'Feed', href: '/feed'},
+                {name: 'Profile', href: homepage(session), img: session.user.image, dropdown: [
+
+                ]}
+            ]
+        }else{
+            nav = [
+                {name: 'About', href: '/about'},
+                {name: 'Support', href: '/support'}
+            ];
+        }
+    }
+
     return (
         <Disclosure as="nav" className="border-b border-gray-300">
             {({ open }) => (
@@ -37,10 +58,10 @@ export default function Nav(){
                             <div className="flex-1 flex items-center justify-center sm:items-stretch sm:justify-end">
                                 <div className="hidden sm:block sm:ml-6">
                                     <div className="flex space-x-4">
-                                        {staticNav.map((item) => (
+                                        {nav.map((item) => (
                                             <NavLink
                                                 key={item.name}
-                                                href={item.href}
+                                                {...item}
                                             >
                                                 {item.name}
                                             </NavLink>
@@ -53,10 +74,10 @@ export default function Nav(){
 
                     <Disclosure.Panel className="sm:hidden">
                         <div className="px-2 pt-2 pb-3 space-y-1">
-                            {staticNav.map((item) => (
+                            {nav.map((item) => (
                                 <DropdownLink
                                     key={item.name}
-                                    href={item.href}
+                                    {...item}
                                 >
                                     {item.name}
                                 </DropdownLink>
@@ -72,28 +93,59 @@ export default function Nav(){
 interface LinkProps {
     href: string,
     important?: boolean,
-    cta?: boolean
+    cta?: boolean,
+    img?: string
 }
 
 function NavLink(props: LinkProps){
     let [active, setActive] = useState(false);
     useEffect(() => setActive(props.href == window.location.pathname));
 
-    return (
-        <a
-            href={props.href}
-            className={classNames(
-                active || props.important ? 'text-indigo-500' : 'text-gray-500 hover:text-indigo-500',
-                'px-3 py-2 rounded-md text-sm'
-            )}
-        >
-            {props.children}
-        </a>
-    );
+    if(props.img && props.dropdown){
+        return (
+            <Menu>
+                <Menu.Button>
+                    <img
+                        src={props.img}
+                        className={classNames(
+                            'h-8 rounded-full align-middle cursor-pointer',
+                            active && 'border-2 border-indigo-200'
+                        )}
+                        alt={props.href}
+                    />
+                </Menu.Button>
+                <Menu.Items className="bg-red-500">
+                    <Menu.Item>
+                        {({ active }) => (
+                            <DropdownLink href="/">Example</DropdownLink>
+                        )}
+                    </Menu.Item>
+                    <Menu.Item>
+                        {({ active }) => (
+                            <DropdownLink href="/">Example</DropdownLink>
+                        )}
+                    </Menu.Item>
+                </Menu.Items>
+            </Menu>
+        );
+    }else{
+        return (
+            <a
+                href={props.href}
+                className={classNames(
+                    !props.cta && (active || props.important ? 'text-indigo-500' : 'text-gray-500 hover:text-indigo-500'),
+                    props.cta && 'text-white bg-gradient-to-r from-purple-500 to-indigo-500 hover:shadow',
+                    'px-3 py-2 rounded-md text-sm align-middle'
+                )}
+            >
+                {props.children}
+            </a>
+        );
+    }
 }
 
 function DropdownLink(props: LinkProps){
-    let active, setActive = useState(false);
+    let [active, setActive] = useState(false);
     useEffect(() => setActive(props.href == window.location.pathname));
 
     return (
