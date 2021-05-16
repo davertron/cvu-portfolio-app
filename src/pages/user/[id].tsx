@@ -11,7 +11,6 @@ export default function Profile(){
             {session &&
                 <>
                     <p className="font-light">Currently signed in as {session.user.email}</p>
-                    <Cta onClick={() => signOut()} className="my-4">Sign Out</Cta>
                 </>
             }
         </Layout>

@@ -2,15 +2,20 @@ import { Authorization } from '../common-types';
 import { homepage } from './util';
 import { Session, getSession } from 'next-auth/client';
 
-export function useAuth(authorization: Authorization, session: Session) : [boolean, string] {
-    
+export interface AuthState {
+    success: boolean,
+    redirect?: string
+}
+
+export function useAuth(authorization: Authorization, session: Session) : AuthState {
+
     switch(authorization){
         case Authorization.GUEST:
-            return [!session, session ? homepage(session) : null];
+            return {success: !session, redirect: session ? homepage(session) : null};
         case Authorization.USER:
-            return [!!session, '/'];
+            return {success: !!session, redirect: '/'};
         default:
-            return [true, null];
+            return {success: true};
     }
 
 }
