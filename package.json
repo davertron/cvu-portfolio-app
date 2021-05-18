@@ -32,7 +32,10 @@
   },
   "homepage": "https://github.com/isaackrementsov/cvu-portfolio-app#readme",
   "devDependencies": {
-    "next-auth": "^3.21.1",
+    "body-parser": "^1.19.0",
+    "next-auth": "^3.23.1",
+    "next-connect": "^0.10.1",
+    "nprogress": "^0.2.0",
     "prisma": "^2.22.1"
   }
 }

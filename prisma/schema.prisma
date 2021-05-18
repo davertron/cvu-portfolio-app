@@ -11,6 +11,45 @@ generator client {
 }
 
 model User {
-    id    String @id @default(uuid())
-    email String @unique @db.VarChar(255)
+    id          String       @id @default(uuid())
+    email       String       @unique @db.VarChar(255)
+    bio         String?
+    bio_pic     String       @db.VarChar(255)
+    collections Collection[]
+    posts       Post[]
+}
+
+model Collection {
+    id        String @id @default(uuid())
+    drive_id  String @db.VarChar(255)
+    title     String @db.VarChar(255)
+    tagged_by Post[]
+    files     Artifact[]
+    owner     User   @relation(fields: [owner_id], references: [id])
+    owner_id  Int
+}
+
+model Artifact {
+    id            String     @id @default(uuid())
+    drive_id      String     @db.VarChar(255)
+    collection    Collection @relation(fields: [collection_id], references: [id])
+    collection_id Int
+}
+
+model Post {
+    id        String       @id @default(uuid())
+    body      String
+    comments  Comment[]
+    tags      Collection[]
+    author    User         @relation(fields: [author_id], references: [id])
+    author_id Int
+}
+
+model Comment {
+    id        String @id @default(uuid())
+    body      String
+    author    User   @relation(fields: [author_id], references: [id])
+    author_id Int
+    post      Post   @relation(fields: [post_id], references: [id])
+    post_id   Int
 }

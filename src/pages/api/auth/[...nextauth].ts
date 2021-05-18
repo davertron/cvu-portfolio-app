@@ -17,7 +17,8 @@ export default NextAuth({
 
             if(!existing){
                 existing = await db.user.create({data: {
-                    email: user.email
+                    email: user.email,
+                    bio_pic: user.picture
                 }});
             }
 

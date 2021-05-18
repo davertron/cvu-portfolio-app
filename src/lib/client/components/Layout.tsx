@@ -4,6 +4,7 @@ import { Authorization } from '../../common-types';
 import { useState, useEffect } from 'react';
 import { Session, useSession } from 'next-auth/client';
 import { useRouter } from 'next/router';
+import NProgress from 'nprogress';
 
 interface LayoutProps {
     authorization?: Authorization,
@@ -20,17 +21,17 @@ export default function Layout(props: LayoutProps){
         if(!authState.success && !loading){
             router.push(authState.redirect);
         }
+
+        loading ? NProgress.start() : NProgress.done();
     });
 
     if(loading){
         // TODO: Add loading animation
-        return (
-            <p>Loading...</p>
-        );
+        return (<></>);
     }else{
         return (
             <>
-                <Nav session={session}/>
+                <Nav sessionState={[session, loading]}/>
                 <div className="container px-7 py-6 font-light">{props.children}</div>
             </>
         );

@@ -5,5 +5,5 @@ export function classNames(...classes: string[]){
 }
 
 export function homepage(session: Session){
-    return '/user/' + session.user.id;
+    return '/users/' + session.user.id;
 }
