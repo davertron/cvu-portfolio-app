@@ -26,14 +26,14 @@ model Collection {
     tagged_by Post[]
     files     Artifact[]
     owner     User   @relation(fields: [owner_id], references: [id])
-    owner_id  Int
+    owner_id  String
 }
 
 model Artifact {
     id            String     @id @default(uuid())
     drive_id      String     @db.VarChar(255)
     collection    Collection @relation(fields: [collection_id], references: [id])
-    collection_id Int
+    collection_id String
 }
 
 model Post {
@@ -42,14 +42,14 @@ model Post {
     comments  Comment[]
     tags      Collection[]
     author    User         @relation(fields: [author_id], references: [id])
-    author_id Int
+    author_id String
 }
 
 model Comment {
     id        String @id @default(uuid())
     body      String
     author    User   @relation(fields: [author_id], references: [id])
-    author_id Int
+    author_id String
     post      Post   @relation(fields: [post_id], references: [id])
-    post_id   Int
+    post_id   String
 }
