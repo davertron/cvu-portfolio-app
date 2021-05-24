@@ -1,18 +1,19 @@
 import Nav from './Nav';
-import { useAuth } from '../authorization';
-import { Authorization } from '../../common-types';
-import { useState, useEffect } from 'react';
-import { Session, useSession } from 'next-auth/client';
+import { useAuth, Authorization } from '../authorization';
+import { Props, Parent } from './types';
+import { useEffect } from 'react';
+import { useSession } from 'next-auth/client';
 import { useRouter } from 'next/router';
 import NProgress from 'nprogress';
+import Head from 'next/head';
 
-interface LayoutProps {
+interface LayoutProps extends Props, Parent {
     authorization?: Authorization,
-    sessionState?: [Session, boolean]
+    title?: string
 }
 
 export default function Layout(props: LayoutProps){
-    const [session, loading] = props.sessionState || useSession();
+    const [session, loading] = useSession();
     const router = useRouter();
 
     useEffect(() => {
@@ -26,13 +27,15 @@ export default function Layout(props: LayoutProps){
     });
 
     if(loading){
-        // TODO: Add loading animation
         return (<></>);
     }else{
         return (
             <>
-                <Nav sessionState={[session, loading]}/>
-                <div className="container px-7 py-6 font-light">{props.children}</div>
+                <Head>
+                    <title>{props.title || 'MyPortfolio'}</title>
+                </Head>
+                <Nav/>
+                <div className="px-7 py-6 font-light">{props.children}</div>
             </>
         );
     }

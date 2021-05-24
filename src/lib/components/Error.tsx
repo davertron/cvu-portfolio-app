@@ -1,4 +1,3 @@
-
 interface ErrorProps {
     error: string
 }

@@ -1,32 +1,29 @@
 import { classNames, homepage } from '../util';
-import { Fragment, useState, useEffect } from 'react';
+import { Props, Parent, Interactive } from './types';
+import { useState, useEffect } from 'react';
 import { Disclosure, Menu } from '@headlessui/react';
-import { MdClose, MdMenu, MdNotifications, MdAdd } from 'react-icons/md';
-import { Session, useSession, signOut } from 'next-auth/client';
+import { MdClose, MdMenu, MdAdd } from 'react-icons/md';
+import { useSession, signOut } from 'next-auth/client';
 
-export interface NavProps {
-    sessionState?: [Session, boolean]
-}
-
-export default function Nav(props: NavProps){
-    const [session, loading] = props.sessionState || useSession();
-    let nav = [];
+export default function Nav(){
+    const [session, loading] = useSession();
+    let nav: LinkProps[] = [];
 
     if(!loading){
         if(session){
             nav = [
-                {name: <><MdAdd className="inline mr-1"/>New Collection</>, href: '/collection/new', cta: true},
-                {name: 'Collections', href: '/collections'},
-                {name: 'Feed', href: '/feed'},
-                {name: 'Profile', href: homepage(session), img: session.user.image, dropdown: [
-                    {name: 'Profile', href: homepage(session)},
-                    {name: 'Sign out', onClick: () => signOut()}
+                {children: <><MdAdd className="inline mr-1"/>New Collection</>, href: '/collection/new', cta: true},
+                {children: 'Collections', href: '/collections'},
+                {children: 'Feed', href: '/feed'},
+                {children: 'Profile', href: homepage(session), img: session.user.image, dropdown: [
+                    {children: 'Profile', href: homepage(session)},
+                    {children: 'Sign out', onClick: () => signOut()}
                 ]}
             ]
         }else{
             nav = [
-                {name: 'About', href: '/about'},
-                {name: 'Support', href: '/support'}
+                {children: 'About', href: '/about'},
+                {children: 'Support', href: '/support'}
             ];
         }
     }
@@ -48,12 +45,14 @@ export default function Nav(props: NavProps){
                             </div>
                             <div className="flex items-center justify-end sm:items-stretch sm:justify-start">
                                 <div className="flex-shrink-0 flex items-center">
-                                    <img
-                                        className="h-8 w-auto"
-                                        src="/img/logo.png"
-                                        alt="MyPortfolio"
-                                    />
-                                    <h1 className="block mx-4 text-xl text-gray-500"><span className="font-bold">My</span>Portfolio</h1>
+                                    <div className="flex items-center">
+                                        <img
+                                            className="h-8 w-auto"
+                                            src="/img/logo.png"
+                                            alt="MyPortfolio"
+                                        />
+                                    </div>
+                                    <div><h1 className="block mx-4 text-xl text-gray-500"><span className="font-bold">My</span>Portfolio</h1></div>
                                 </div>
                             </div>
                             <div className="flex-1 flex items-center justify-center sm:items-stretch sm:justify-end">
@@ -61,11 +60,9 @@ export default function Nav(props: NavProps){
                                     <div className="flex space-x-4">
                                         {nav.map((item) => (
                                             <NavLink
-                                                key={item.name}
+                                                key={item.children as string}
                                                 {...item}
-                                            >
-                                                {item.name}
-                                            </NavLink>
+                                            />
                                         ))}
                                     </div>
                                 </div>
@@ -77,11 +74,9 @@ export default function Nav(props: NavProps){
                         <div className="px-2 pt-2 pb-3 space-y-1">
                             {nav.map((item) => (
                                 <DropdownLink
-                                    key={item.name}
+                                    key={item.children as string}
                                     {...item}
-                                >
-                                    {item.name}
-                                </DropdownLink>
+                                />
                             ))}
                         </div>
                     </Disclosure.Panel>
@@ -91,14 +86,14 @@ export default function Nav(props: NavProps){
     )
 }
 
-interface LinkProps {
+interface LinkProps extends Props, Interactive, Parent {
     href?: string,
     display?: string,
-    classNames?: string,
+    name?: JSX.Element | string,
     important?: boolean,
     img?: string,
     cta?: boolean,
-    onClick?: Function
+    dropdown?: LinkProps[]
 }
 
 function NavLink(props: LinkProps){
@@ -120,11 +115,9 @@ function NavLink(props: LinkProps){
                 </Menu.Button>
                 <Menu.Items className="origin-top-right absolute right-0 mt-11 w-48 rounded border border-gray-200 bg-white shadow focus:outline-none">
                     {props.dropdown.map(option => (
-                        <Menu.Item key={option.name}>
-                            {({ active }) => (
-                                <DropdownLink {...option}>
-                                    {option.name}
-                                </DropdownLink>
+                        <Menu.Item key={option.children as string}>
+                            {_e => (
+                                <DropdownLink {...option}/>
                             )}
                         </Menu.Item>
                     ))}
@@ -140,7 +133,7 @@ function NavLink(props: LinkProps){
                     !props.cta && (active || props.important ? 'text-indigo-500' : 'text-gray-500 hover:text-indigo-500'),
                     props.cta && 'text-white bg-gradient-to-r from-purple-500 to-indigo-500 hover:shadow',
                     props.display,
-                    props.classNames,
+                    props.className,
                     'px-3 py-2 rounded-md text-sm align-middle cursor-pointer'
                 )}
             >
@@ -151,10 +144,7 @@ function NavLink(props: LinkProps){
 }
 
 function DropdownLink(props: LinkProps){
-    let [active, setActive] = useState(false);
-    useEffect(() => setActive(props.href == window.location.pathname));
-
     return (
-        <NavLink {...props} display="block">{props.children}</NavLink>
+        <NavLink {...props} display="block"/>
     );
 }

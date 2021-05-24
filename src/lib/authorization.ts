@@ -1,10 +1,13 @@
-import { Authorization } from '../common-types';
 import { homepage } from './util';
-import { Session, getSession } from 'next-auth/client';
+import { Session } from 'next-auth';
 
 export interface AuthState {
-    success: boolean,
+    success: boolean
     redirect?: string
+}
+
+export enum Authorization {
+    GUEST, USER
 }
 
 export function useAuth(authorization: Authorization, session: Session) : AuthState {
