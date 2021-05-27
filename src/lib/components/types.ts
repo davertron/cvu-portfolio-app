@@ -1,4 +1,4 @@
-import { CSSProperties, MouseEventHandler, Component } from 'react';
+import { CSSProperties, MouseEventHandler } from 'react';
 
 export interface Props {
     className?: string

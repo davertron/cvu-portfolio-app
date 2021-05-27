@@ -69,6 +69,7 @@ export default function Profile(){
                                         <div>
                                             {files.length}
                                             {files.map(file => (
+                                                <></>
                                             ))}
                                         </div>
                                     </>

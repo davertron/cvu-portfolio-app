@@ -20,6 +20,7 @@ export default NextAuth({
                 userId = snapshot.docs[0].id;
             }else{
                 userId = id();
+                
                 await db.users.doc(userId).set({
                     name: user.name,
                     email: user.email,
