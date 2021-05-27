@@ -15,6 +15,7 @@ export default function Profile(){
     const [collections, setCollections] = useState([]);
     const [error, setError] = useState(null);
     const [editing, setEditing] = useState(false);
+    const [files, setFiles] = useState([]);
 
     const router = useRouter();
     const { id } = router.query;
@@ -48,9 +49,34 @@ export default function Profile(){
         <Layout authorization={Authorization.USER}>
             {error && <Error error={error}/>}
             {user && session &&
-                <div className="flex w-max mx-auto rounded py-3 px-5 text-gray-600">
+                <div className="flex flex-wrap justify-center w-screen rounded py-3 px-5 text-gray-600">
                     <div className="m-6 flex-column">
-                        <img src={user.bio_pic} alt="profile" className="w-56 rounded mb-6 shadow-lg"/>
+                        {editing ?
+                            <Input
+                                type="file"
+                                setFiles={setFiles}
+                            >
+                                <div className="relative">
+                                    <img src={user.bio_pic} alt="profile" className="w-56 rounded mb-6 shadow-lg"/>
+                                    <div className="absolute top-0 w-full h-full bg-gray-600 opacity-80 rounded text-center"></div>
+                                    <div className="absolute top-0 w-full h-full rounded flex flex-column items-center justify-center">
+                                        <MdEdit className="text-white" size="1.5em"/>
+                                    </div>
+                                </div>
+                                {files.length > 0 &&
+                                    <>
+                                        <hr/>
+                                        <div>
+                                            {files.length}
+                                            {files.map(file => (
+                                            ))}
+                                        </div>
+                                    </>
+                                }
+                            </Input>
+                            :
+                            <img src={user.bio_pic} alt="profile" className="w-56 rounded mb-6 shadow-lg"/>
+                        }
                         <div>
                             <h3 className="font-bold text-gray-700 text-lg my-2">Tags</h3>
                             <p className="my-3">
@@ -87,7 +113,7 @@ export default function Profile(){
                         {editing &&
                             <button className="rounded-full border border-purple-400 text-purple-400 p-2 hover:bg-purple-400 hover:text-white focus:outline-none my-1 transition-colors" onClick={() => {
                                 db.users.doc(id as string).set(user);
-                                setEditing(false)
+                                setEditing(false);
                             }}>
                                 <MdCheck/>
                             </button>

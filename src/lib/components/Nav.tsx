@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Disclosure, Menu } from '@headlessui/react';
 import { MdClose, MdMenu, MdAdd } from 'react-icons/md';
 import { useSession, signOut } from 'next-auth/client';
+import Link from 'next/link';
 
 export default function Nav(){
     const [session, loading] = useSession();
@@ -45,14 +46,18 @@ export default function Nav(){
                             </div>
                             <div className="flex items-center justify-end sm:items-stretch sm:justify-start">
                                 <div className="flex-shrink-0 flex items-center">
-                                    <div className="flex items-center">
-                                        <img
-                                            className="h-8 w-auto"
-                                            src="/img/logo.png"
-                                            alt="MyPortfolio"
-                                        />
-                                    </div>
-                                    <div><h1 className="block mx-4 text-xl text-gray-500"><span className="font-bold">My</span>Portfolio</h1></div>
+                                    <Link href="/">
+                                        <a className="block flex flex-row items-center">
+                                            <div className="flex items-center">
+                                                <img
+                                                    className="h-8 w-auto"
+                                                    src="/img/logo.png"
+                                                    alt="MyPortfolio"
+                                                />
+                                            </div>
+                                            <div><h1 className="block mx-4 text-xl text-gray-500"><span className="font-bold">My</span>Portfolio</h1></div>
+                                        </a>
+                                    </Link>
                                 </div>
                             </div>
                             <div className="flex-1 flex items-center justify-center sm:items-stretch sm:justify-end">
@@ -108,7 +113,7 @@ function NavLink(props: LinkProps){
                         src={props.img}
                         className={classNames(
                             'h-8 w-8 rounded-full align-middle cursor-pointer',
-                            active && 'border-2 border-indigo-200'
+                            active && 'border border-indigo-400'
                         )}
                         alt={props.href}
                     />
@@ -124,10 +129,25 @@ function NavLink(props: LinkProps){
                 </Menu.Items>
             </Menu>
         );
+    }else if(props.href){
+        return (
+            <Link href={props.href}>
+                <a
+                    className={classNames(
+                        !props.cta && (active || props.important ? 'text-indigo-500' : 'text-gray-500 hover:text-indigo-500'),
+                        props.cta && 'text-white bg-gradient-to-r from-purple-500 to-indigo-500 hover:shadow',
+                        props.display,
+                        props.className,
+                        'px-3 py-2 rounded-md text-sm align-middle cursor-pointer'
+                    )}
+                >
+                    {props.children}
+                </a>
+            </Link>
+        );
     }else{
         return (
             <a
-                href={props.href}
                 onClick={props.onClick}
                 className={classNames(
                     !props.cta && (active || props.important ? 'text-indigo-500' : 'text-gray-500 hover:text-indigo-500'),

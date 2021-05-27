@@ -1,16 +1,19 @@
-import { Props } from './types';
+import { Props, Parent } from './types';
 import { classNames } from '../util';
 import { Switch } from '@headlessui/react';
 import { FormEvent, FormEventHandler } from 'react';
+import Files from 'react-files';
 
-type StateSetter = (cb: Function) => any;
+type StateSetter = (cb: Function | Object) => any;
 
-interface InputProps extends Props {
+interface InputProps extends Props, Parent {
     type: string
-    value: any
-    name: string
+    name?: string
+    value?: any
     onInput?: FormEventHandler
+    onError?: FormEventHandler
     setForm?: StateSetter
+    setFiles?: StateSetter
 }
 
 function defaultHandler(setForm: StateSetter) : FormEventHandler {
@@ -35,6 +38,12 @@ function switchHandler(setForm: StateSetter, name: string) : (checked: boolean) 
             ...prevForm,
             [name]: checked
         }))
+    }
+}
+
+function fileHandler(setFiles: StateSetter, name?: string) : (files: any[]) => void {
+    return (files: any[]) => {
+        setFiles(files);
     }
 }
 
@@ -72,6 +81,19 @@ export default function Input(props: InputProps){
                     )}
                 />
             </Switch>
+        );
+    }if(props.type == 'file'){
+        return (
+            <Files
+              className="cursor-pointer"
+              onChange={fileHandler(props.setFiles)}
+              onError={props.onError || (_e => console.log('Error processing file'))}
+              accepts={['image/png', 'image/jpg', 'image/svg', 'image/bmp', 'image/jpeg']}
+              maxFileSize={10000000}
+              minFileSize={0}
+            >
+                {props.children}
+            </Files>
         );
     }else{
         return (
