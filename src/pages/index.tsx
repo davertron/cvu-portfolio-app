@@ -20,9 +20,8 @@ export default function Index(){
                 </div>
                 <h1 className="text-3xl text-gray-700 mb-10 mt-3"><span className="font-bold">Upgrade</span> your learning with MyPortfolio</h1>
                 {!loading && !session &&
-                    <Cta onClick={() => signIn('google')} gradient className="flex items-bottom mx-auto my-5">
-                        <div className="mr-3"><CgGoogle size="1.3em" className="inline"/></div>
-                        <div><span>Continue with Google</span></div>
+                    <Cta onClick={() => signIn('google')}>
+                        <p className="text-lg px-2"><CgGoogle className="inline mr-3" size="1em"/> Continue with Google</p>
                     </Cta>
                 }
             </div>

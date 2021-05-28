@@ -15,6 +15,8 @@ interface InputProps extends Props, Parent {
     onError?: FormEventHandler
     setForm?: StateSetter
     setFiles?: StateSetter
+    placeholder?: string
+    customBg?: boolean
 }
 
 function defaultHandler(setForm: StateSetter) : FormEventHandler {
@@ -49,7 +51,10 @@ function fileHandler(setFiles: StateSetter, name?: string) : (files: any[]) => v
 }
 
 export default function Input(props: InputProps){
-    const baseClasses = 'rounded bg-gray-50 resize-none focus:outline-none px-3 py-2';
+    const baseClasses = classNames(
+        'rounded resize-none focus:outline-none px-3 py-2',
+        !props.customBg && 'bg-gray-50'
+    );
     const handler = props.onInput || props.setForm ? defaultHandler(props.setForm) : () => {};
     const [error, setError] = useState(null);
 
@@ -63,6 +68,7 @@ export default function Input(props: InputProps){
                 )}
                 value={props.value}
                 name={props.name}
+                placeholder={props.placeholder}
             >
             </textarea>
         );
@@ -110,6 +116,7 @@ export default function Input(props: InputProps){
                 value={props.value}
                 onInput={handler}
                 name={props.name}
+                placeholder={props.placeholder}
                 className={classNames(
                     baseClasses,
                     props.className

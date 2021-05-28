@@ -2,17 +2,18 @@ import Layout from '../../lib/components/Layout';
 import Error from '../../lib/components/Error';
 import Input from '../../lib/components/Input';
 import { Authorization } from '../../lib/authorization';
-import db from '../../lib/db';
+import db, { FileCollection } from '../../lib/db';
 import { MdEdit, MdClose, MdCheck } from 'react-icons/md';
 import { useSession } from 'next-auth/client';
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 
 export default function Profile(){
     const [session, loading] = useSession();
 
     const [user, setUser] = useState(null);
-    const [collections, setCollections] = useState([]);
+    const [collections, setCollections] = useState([] as FileCollection[]);
     const [error, setError] = useState(null);
     const [editing, setEditing] = useState(false);
     const [files, setFiles] = useState([]);
@@ -64,7 +65,6 @@ export default function Profile(){
                                     </div>
                                 </div>
                             </Input>
-
                             :
                             <img src={user.bio_pic} alt="profile" className="w-56 rounded mb-6 shadow-lg"/>
                         }
@@ -89,7 +89,7 @@ export default function Profile(){
                                         <span>{collection.name}</span>
                                     })
                                     :
-                                    <span>No collections yet. <a href="/collection/new" className="text-blue-500 hover:underline">Add one</a></span>
+                                    <span>No collections yet. {session.user.id == id && <Link href="/collections/new"><a className="text-blue-500 hover:underline">Add one</a></Link>}</span>
                                 }
                             </p>
                         </div>
