@@ -1,6 +1,8 @@
 import { v4 as uuidv4 } from 'uuid';
+
 import firebase from 'firebase/app';
 import 'firebase/firestore';
+import 'firebase/storage';
 
 // Schema definitions
 // Note: most of the attributes here are optional because the objects passed to functions like doc.set({...}) must match schema types, but will not necessarily contain all fields
@@ -61,6 +63,7 @@ class CollectionFactory {
 }
 
 const store = app.firestore();
+const bucket = app.storage().ref();
 const cf = new CollectionFactory(store);
 
 export default {
@@ -68,7 +71,11 @@ export default {
     file_collections: cf.new<FileCollection>('file_collections'),
     posts: cf.new<Post>('posts'),
     post_comments: (postId: string) => cf.new<Comment>('posts/' + postId + '/comments'),
-    file_collection_artifacts: (collectionId: string) => cf.new<Artifact>('file_collections/' + collectionId + '/artifacts')
+    file_collection_artifacts: (collectionId: string) => cf.new<Artifact>('file_collections/' + collectionId + '/artifacts'),
+
+    // File storage bucket
+    storage: (filename: string) => bucket.child(filename),
+    avatars: (filename: string) => bucket.child('avatars/' + filename)
 };
 
 // db-specific utils

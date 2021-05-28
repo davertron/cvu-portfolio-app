@@ -13,7 +13,7 @@ export default function Nav(){
     if(!loading){
         if(session){
             nav = [
-                {children: <><MdAdd className="inline mr-1"/>New Collection</>, href: '/collection/new', cta: true},
+                {children: <><MdAdd className="inline mr-1"/>New Collection</>, href: '/collections/new', cta: true},
                 {children: 'Collections', href: '/collections'},
                 {children: 'Feed', href: '/feed'},
                 {children: 'Profile', href: homepage(session), img: session.user.image, dropdown: [

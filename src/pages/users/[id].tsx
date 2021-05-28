@@ -25,7 +25,7 @@ export default function Profile(){
             let uid = id as string;
             const doc = await db.users.doc(uid).get();
 
-            if(doc){
+            if(doc.exists){
                 setUser(doc.data());
                 setError(null);
 
@@ -57,26 +57,29 @@ export default function Profile(){
                                 setFiles={setFiles}
                             >
                                 <div className="relative">
-                                    <img src={user.bio_pic} alt="profile" className="w-56 rounded mb-6 shadow-lg"/>
-                                    <div className="absolute top-0 w-full h-full bg-gray-600 opacity-80 rounded text-center"></div>
-                                    <div className="absolute top-0 w-full h-full rounded flex flex-column items-center justify-center">
+                                    <img src={files.length > 0 ? files[0].preview.url : user.bio_pic} alt="profile" className="w-56 rounded mb-6 shadow-lg"/>
+                                    <div className="absolute top-0 w-56 h-full bg-gray-600 opacity-50 rounded text-center"></div>
+                                    <div className="absolute top-0 w-56 h-full rounded flex flex-column items-center justify-center">
                                         <MdEdit className="text-white" size="1.5em"/>
                                     </div>
                                 </div>
-                                {files.length > 0 &&
-                                    <>
-                                        <hr/>
-                                        <div>
-                                            {files.length}
-                                            {files.map(file => (
-                                                <></>
-                                            ))}
-                                        </div>
-                                    </>
-                                }
                             </Input>
+
                             :
                             <img src={user.bio_pic} alt="profile" className="w-56 rounded mb-6 shadow-lg"/>
+                        }
+                        {files.length > 0 && editing &&
+                            <div>
+                                <hr/>
+                                <div>
+                                    <p
+                                        className="text-gray-400 my-4"
+                                        onClick={_e => setFiles([])}
+                                    >
+                                        <MdClose className="inline"/> {files[0].name}
+                                    </p>
+                                </div>
+                            </div>
                         }
                         <div>
                             <h3 className="font-bold text-gray-700 text-lg my-2">Tags</h3>
@@ -105,15 +108,46 @@ export default function Profile(){
                         }
                     </div>
                     <div className="ml-3 my-6 flex flex-col">
-                        <button className="rounded-full border border-gray-500 p-2 hover:bg-gray-500 hover:text-white focus:outline-none my-1 transition-colors" onClick={async () => {
-                            if(editing) await getData(true);
-                            setEditing(!editing);
-                        }}>
-                            {editing ? <MdClose/> : <MdEdit/>}
-                        </button>
+                        {session.user.id == id &&
+                            <button className="rounded-full border border-gray-500 p-2 hover:bg-gray-500 hover:text-white focus:outline-none my-1 transition-colors" onClick={async () => {
+                                if(editing) await getData(true);
+                                setEditing(!editing);
+                            }}>
+                                {editing ? <MdClose/> : <MdEdit/>}
+                            </button>
+                        }
+
                         {editing &&
                             <button className="rounded-full border border-purple-400 text-purple-400 p-2 hover:bg-purple-400 hover:text-white focus:outline-none my-1 transition-colors" onClick={() => {
-                                db.users.doc(id as string).set(user);
+                                if(files.length > 0){
+                                    const file = files[0];
+
+                                    db.avatars(session.user.id + '.' + file.extension).put(file).then(async snapshot => {
+                                        const url = await snapshot.ref.getDownloadURL();
+                                        const oldURL = user.bio_pic;
+                                        const update = {
+                                            ...user,
+                                            bio_pic: url
+                                        };
+
+                                        db.users.doc(session.user.id as string).set(update).then(_snapshot => {
+                                            setUser(update);
+                                            setFiles([]);
+                                        });
+
+                                        // Delete old file, if it was actually uploaded to the bucket
+                                        db.avatars(oldURL).delete().catch(_e => {});
+                                    });
+
+                                    setUser({
+                                        ...user,
+                                        bio_pic: file.preview.url
+                                    });
+                                }else{
+                                    setFiles([]);
+                                    db.users.doc(session.user.id as string).set(user);
+                                }
+
                                 setEditing(false);
                             }}>
                                 <MdCheck/>

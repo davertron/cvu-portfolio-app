@@ -1,23 +1,31 @@
 import Cta from '../lib/components/Cta';
 import Layout from '../lib/components/Layout';
-import { Authorization } from '../lib/authorization';
 import { useSession, signIn } from 'next-auth/client';
 import { CgGoogle } from 'react-icons/cg';
+import Image from 'next/image';
 
 export default function Index(){
     const [session, loading] = useSession();
 
     return (
-        <Layout>
-            {session &&
-                <h1 className="text-xl font-light text-gray-700">Welcome to MyPortfolio</h1>
-            }
-            {!loading && !session &&
-                <Cta onClick={() => signIn('google')} gradient flex>
-                    <div className="mr-3"><CgGoogle size="1.3em"/></div>
-                    <div>Continue with Google</div>
-                </Cta>
-            }
+        <Layout noPadding>
+            <div className="text-center bg-gray-100 py-32">
+                <div className="py-3">
+                    <Image
+                        src="/img/logo.png"
+                        alt="Logo"
+                        width={100}
+                        height={100}
+                    />
+                </div>
+                <h1 className="text-3xl text-gray-700 mb-10 mt-3"><span className="font-bold">Upgrade</span> your learning with MyPortfolio</h1>
+                {!loading && !session &&
+                    <Cta onClick={() => signIn('google')} gradient className="flex items-bottom mx-auto my-5">
+                        <div className="mr-3"><CgGoogle size="1.3em" className="inline"/></div>
+                        <div><span>Continue with Google</span></div>
+                    </Cta>
+                }
+            </div>
         </Layout>
     )
 }

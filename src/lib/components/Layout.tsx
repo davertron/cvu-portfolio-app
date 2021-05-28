@@ -1,6 +1,7 @@
 import Nav from './Nav';
 import { useAuth, Authorization } from '../authorization';
 import { Props, Parent } from './types';
+import { classNames } from '../util';
 import { useEffect } from 'react';
 import { useSession } from 'next-auth/client';
 import { useRouter } from 'next/router';
@@ -9,7 +10,9 @@ import Head from 'next/head';
 
 interface LayoutProps extends Props, Parent {
     authorization?: Authorization,
-    title?: string
+    title?: string,
+    className?: string,
+    noPadding?: boolean
 }
 
 export default function Layout(props: LayoutProps){
@@ -35,7 +38,15 @@ export default function Layout(props: LayoutProps){
                     <title>{props.title || 'MyPortfolio'}</title>
                 </Head>
                 <Nav/>
-                <div className="px-7 py-6 font-light">{props.children}</div>
+                <div
+                    className={classNames(
+                        'font-light',
+                        !props.noPadding && 'px-7 py-6',
+                        props.className
+                    )}
+                >
+                    {props.children}
+                </div>
             </>
         );
     }

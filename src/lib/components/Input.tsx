@@ -1,7 +1,8 @@
 import { Props, Parent } from './types';
 import { classNames } from '../util';
+import Error from './Error';
 import { Switch } from '@headlessui/react';
-import { FormEvent, FormEventHandler } from 'react';
+import { FormEvent, FormEventHandler, useState } from 'react';
 import Files from 'react-files';
 
 type StateSetter = (cb: Function | Object) => any;
@@ -50,6 +51,7 @@ function fileHandler(setFiles: StateSetter, name?: string) : (files: any[]) => v
 export default function Input(props: InputProps){
     const baseClasses = 'rounded bg-gray-50 resize-none focus:outline-none px-3 py-2';
     const handler = props.onInput || props.setForm ? defaultHandler(props.setForm) : () => {};
+    const [error, setError] = useState(null);
 
     if(props.type == 'textarea'){
         return (
@@ -83,15 +85,21 @@ export default function Input(props: InputProps){
             </Switch>
         );
     }if(props.type == 'file'){
+        const handleFiles = fileHandler(props.setFiles);
+
         return (
             <Files
               className="cursor-pointer"
-              onChange={fileHandler(props.setFiles)}
-              onError={props.onError || (_e => console.log('Error processing file'))}
+              onChange={e => {
+                  handleFiles(e);
+                  setError(null);
+              }}
+              onError={props.onError || (() => setError('Error processing file'))}
               accepts={['image/png', 'image/jpg', 'image/svg', 'image/bmp', 'image/jpeg']}
               maxFileSize={10000000}
               minFileSize={0}
             >
+                {error && <Error error={error}/>}
                 {props.children}
             </Files>
         );
