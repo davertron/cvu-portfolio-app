@@ -1,3 +1,8 @@
+/**
+ * Layout Component
+ * Wraparound component for consistent formatting
+ */
+
 import Nav from './Nav';
 import { useAuth, Authorization } from '../authorization';
 import { Props, Parent } from './types';
@@ -5,7 +10,7 @@ import { classNames } from '../util';
 import { useEffect } from 'react';
 import { useSession } from 'next-auth/client';
 import { useRouter } from 'next/router';
-import NProgress from 'nprogress';
+import NProgress from 'nprogress'; //progress bar
 import Head from 'next/head';
 
 interface LayoutProps extends Props, Parent {
@@ -25,7 +30,7 @@ export default function Layout(props: LayoutProps){
         if(!authState.success && !loading){
             router.push(authState.redirect);
         }
-
+        //set progress bar state
         loading ? NProgress.start() : NProgress.done();
     });
 
