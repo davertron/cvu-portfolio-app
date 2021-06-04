@@ -1,7 +1,13 @@
+/**
+ /** 
+ * Nav Component
+ * Creates site navigation   
+ */
+
 import { classNames, homepage } from '../util';
 import { Props, Parent, Interactive } from './types';
 import { useState, useEffect } from 'react';
-import { Disclosure, Menu } from '@headlessui/react';
+import { Disclosure, Menu } from '@headlessui/react'; //expandable and collapsible elements
 import { MdClose, MdMenu, MdAdd } from 'react-icons/md';
 import { useSession, signOut } from 'next-auth/client';
 import Link from 'next/link';

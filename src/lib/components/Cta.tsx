@@ -1,3 +1,8 @@
+/**
+ * Call To Action Component
+ * Creates a button for user interaction
+ */
+
 import { classNames } from '../util';
 import { Props, Parent, Interactive } from './types';
 

@@ -1,3 +1,8 @@
+/**
+ * Error Component
+ * Exports a paragraph with error message
+ */
+
 interface ErrorProps {
     error: string
 }
