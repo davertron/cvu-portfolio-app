@@ -8,21 +8,19 @@ Start by installing the required Node dependencies with
 $ npm install
 ```
 ### Add OAuth & Firebase Credentials
-Create a `next.config.js` file and add OAuth/Firebase credentials like so:
+Create a `.env.local` file and add OAuth/Firebase credentials like so:
 ```js
-module.exports = {
-    env: {
-        OAUTH_CLIENT_ID: 'OAUTH_CLIENT_ID',
-        OAUTH_CLIENT_SECRET: 'OAUTH_CLIENT_SECRET',
+NEXT_PUBLIC_API_KEY=...
 
-        FIREBASE_API_KEY: 'FIREBASE_API_KEY',
-    	FIREBASE_AUTH_DOMAIN: 'AUTH_DOMAIN',
-    	FIREBASE_PROJECT_ID: 'PROJECT_ID',
-    	FIREBASE_STORAGE_BUCKET: 'STORAGE_BUCKET',
-    	FIREBASE_MESSAGING_SENDER_ID: 'SENDER_ID',
-    	FIREBASE_APP_ID: 'FIREBASE_APP_ID'
-    }
-}
+OAUTH_CLIENT_ID=...
+OAUTH_CLIENT_SECRET=...
+
+NEXT_PUBLIC_FIREBASE_API_KEY=...
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=...
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=...
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=...
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=...
+NEXT_PUBLIC_FIREBASE_APP_ID=...
 ```
 ## Running
 ### Development

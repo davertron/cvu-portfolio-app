@@ -2,20 +2,27 @@ import { Authorization } from '../../lib/authorization';
 import Layout from '../../lib/components/Layout';
 import Input from '../../lib/components/Input';
 import Cta from '../../lib/components/Cta';
+import Picker from '../../lib/components/Picker';
 import db, { FileCollection, Artifact } from '../../lib/db';
+import drive from '../../lib/drive';
 import { useSession } from 'next-auth/client';
 import { useRouter } from 'next/router';
 import { useState } from 'react';
 import { MdCloudUpload } from 'react-icons/md';
 
 export default function Collection(){
+    const clientId = process.env.OAUTH_CLIENT_ID;
+    const developerKey = process.env.API_KEY;
+
     const [session, loading] = useSession();
+
     const [collection, setCollection] = useState({} as FileCollection);
     const [artifacts, setArtifacts] = useState([] as Artifact[]);
+    const [editing, setEditing] = useState(false);
+
     const router = useRouter();
     const { id } = router.query;
     const creating = id == 'new';
-    const [editing, setEditing] = useState(false);
     const showInputs = creating || editing;
 
     async function getData(){
@@ -40,9 +47,31 @@ export default function Collection(){
                     }
                 </div>
                 <div className="my-7">
-                    <Cta invert onClick={() => {}}>
-                        <><MdCloudUpload className="inline mr-3"/>Add files from Drive</>
-                    </Cta>
+                    <Picker
+                        scope={[]}
+                        onInput={async picked => {
+                            if(picked.docs){
+                                let updatedArtifacts = artifacts;
+
+                                for(let i = 0; i < picked.docs.length; i++){
+                                    const doc = picked.docs[i];
+                                    const metadata = await drive.metadata(doc.id);
+                                    console.log(metadata);
+                                    updatedArtifacts.push({
+                                        drive_id: doc.id,
+                                        title: doc.name,
+                                        icon: doc.iconUrl
+                                    });
+                                }
+                            }
+                        }}
+                        viewId="DOCS"
+                        multiple
+                    >
+                        <Cta invert>
+                            <><MdCloudUpload className="inline mr-3"/>Add files from Drive</>
+                        </Cta>
+                    </Picker>
                 </div>
             </div>
             <div className="flex flex-wrap justify-center w-screen rounded py-3 px-5 text-gray-600">
