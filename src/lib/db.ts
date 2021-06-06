@@ -7,20 +7,22 @@ import 'firebase/storage';
 // Schema definitions
 // Note: most of the attributes here are optional because the objects passed to functions like doc.set({...}) must match schema types, but will not necessarily contain all fields
 
-export interface User {
+interface Model { }
+
+export interface User extends Model {
     email?: string
     name?: string
     bio_pic?: string
     bio?: string
 }
 
-export interface FileCollection {
+export interface FileCollection extends Model {
     drive_id?: string
     title?: string
     author_id?: string
 }
 
-export interface Artifact {
+export interface Artifact extends Model {
     drive_id?: string
     title?: string
     description?: string
@@ -28,13 +30,13 @@ export interface Artifact {
     thumbnail?: string
 }
 
-export interface Post {
+export interface Post extends Model {
     body?: string
     author_id?: string
     tags?: string[]
 }
 
-export interface Comment {
+export interface Comment extends Model {
     body: string
 }
 
@@ -69,12 +71,47 @@ const store = app.firestore();
 const bucket = app.storage().ref();
 const cf = new CollectionFactory(store);
 
+const virtuals = {
+    artifacts: {
+        get: async (driveId: string, client) : Promise<Artifact> => {
+            const res = await client.drive.files.get({
+                fileId: driveId,
+                fields: 'name,iconLink,thumbnailLink'
+            });
+
+            const metadata = res.data;
+
+            if(metadata){
+                return {
+                    title: metadata.name,
+                    icon: metadata.iconLink,
+                    thumbnail: metadata.thumbnailLink
+                };
+            }else{
+                return {};
+            }
+        },
+
+        thumbnail: async (driveThumbnailLink: string, client) : Promise<string> => {
+            if(driveThumbnailLink){
+                const res = await client.request(driveThumbnailLink);
+            }else{
+
+            }
+            return '';
+        }
+    }
+}
+
 export default {
     users: cf.new<User>('users'),
     file_collections: cf.new<FileCollection>('file_collections'),
     posts: cf.new<Post>('posts'),
-    post_comments: (postId: string) => cf.new<Comment>('posts/' + postId + '/comments'),
-    file_collection_artifacts: (collectionId: string) => cf.new<Artifact>('file_collections/' + collectionId + '/artifacts'),
+    comments: (postId: string) => cf.new<Comment>('posts/' + postId + '/comments'),
+    artifacts: (collectionId: string) => cf.new<Artifact>('file_collections/' + collectionId + '/artifacts'),
+
+    // Virtual (not directly loaded from db) model fields
+    virtuals,
 
     // File storage bucket
     storage: (filename: string) => bucket.child(filename),

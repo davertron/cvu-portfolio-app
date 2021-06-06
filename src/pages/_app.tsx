@@ -4,6 +4,13 @@ import NProgress from 'nprogress';
 import { Provider } from 'next-auth/client';
 import Head from 'next/head';
 
+declare global {
+    interface Window {
+        google: any,
+        gapi: any
+    }
+}
+
 NProgress.configure({showSpinner: false});
 
 function App({ Component, pageProps }) {

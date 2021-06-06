@@ -4,16 +4,12 @@ import Input from '../../lib/components/Input';
 import Cta from '../../lib/components/Cta';
 import Picker from '../../lib/components/Picker';
 import db, { FileCollection, Artifact } from '../../lib/db';
-import drive from '../../lib/drive';
 import { useSession } from 'next-auth/client';
 import { useRouter } from 'next/router';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { MdCloudUpload } from 'react-icons/md';
 
 export default function Collection(){
-    const clientId = process.env.OAUTH_CLIENT_ID;
-    const developerKey = process.env.API_KEY;
-
     const [session, loading] = useSession();
 
     const [collection, setCollection] = useState({} as FileCollection);
@@ -24,6 +20,13 @@ export default function Collection(){
     const { id } = router.query;
     const creating = id == 'new';
     const showInputs = creating || editing;
+
+    const artifactPanels = artifacts.map(artifact => (
+        <div key={artifact.drive_id}>
+            <img alt="thumbnail" src={artifact.thumbnail} className="h-16"/>
+            <p>{artifact.title}</p>
+        </div>
+    ));
 
     async function getData(){
 
@@ -55,14 +58,15 @@ export default function Collection(){
 
                                 for(let i = 0; i < picked.docs.length; i++){
                                     const doc = picked.docs[i];
-                                    const metadata = await drive.metadata(doc.id);
-                                    console.log(metadata);
+                                    const virtuals = await db.virtuals.artifacts.get(doc.id, window.gapi.client);
+
                                     updatedArtifacts.push({
                                         drive_id: doc.id,
-                                        title: doc.name,
-                                        icon: doc.iconUrl
+                                        ...virtuals
                                     });
                                 }
+
+                                setArtifacts(updatedArtifacts);
                             }
                         }}
                         viewId="DOCS"
@@ -75,11 +79,7 @@ export default function Collection(){
                 </div>
             </div>
             <div className="flex flex-wrap justify-center w-screen rounded py-3 px-5 text-gray-600">
-                {artifacts.map(artifact => {
-                    <div>
-
-                    </div>
-                })}
+                {artifactPanels}
             </div>
         </Layout>
     );

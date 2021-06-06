@@ -17,7 +17,7 @@ export default function Picker(props: PickerProps){
     const [session, loading] = useSession();
     const [createPicker, setCreatePicker] = useState(false);
 
-    function create(google, token){
+    function create(google, token: string){
         const picker = new google.picker.PickerBuilder()
             .addView(google.picker.ViewId[props.viewId])
             .setOAuthToken(token)
