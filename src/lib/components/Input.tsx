@@ -5,7 +5,7 @@ import { Switch } from '@headlessui/react';
 import { FormEvent, FormEventHandler, useState } from 'react';
 import Files from 'react-files';
 
-type StateSetter = (cb: Function | Object) => any;
+export type StateSetter = (cb: Function | Object) => any;
 
 interface InputProps extends Props, Parent {
     type: string
@@ -17,12 +17,14 @@ interface InputProps extends Props, Parent {
     setFiles?: StateSetter
     placeholder?: string
     customBg?: boolean
+    noPadding?: boolean
 }
 
 function defaultHandler(setForm: StateSetter) : FormEventHandler {
     return (e: FormEvent<Element>) => {
         let val = e.target.value;
-        const name = e.target.name;
+        let name = e.target.name;
+        name = name.split('_')[0];
 
         setForm(prevForm => {
             if(e.target.type == 'checkbox') val = !prevForm[name];
@@ -52,8 +54,9 @@ function fileHandler(setFiles: StateSetter, name?: string) : (files: any[]) => v
 
 export default function Input(props: InputProps){
     const baseClasses = classNames(
-        'rounded resize-none focus:outline-none px-3 py-2',
-        !props.customBg && 'bg-gray-50'
+        'rounded resize-none focus:outline-none',
+        !props.customBg && 'bg-gray-50',
+        !props.noPadding && 'px-3 py-2'
     );
     const handler = props.onInput || props.setForm ? defaultHandler(props.setForm) : () => {};
     const [error, setError] = useState(null);

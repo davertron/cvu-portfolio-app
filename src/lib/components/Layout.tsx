@@ -37,7 +37,7 @@ export default function Layout(props: LayoutProps){
                 router.push(authState.redirect);
             }
 
-            if(props.gapis && !window.google){
+            if(props.gapis && !window.google && session){
                 loadScript('https://apis.google.com/js/api.js', () => {
                     for(let gapi of props.gapis){
                         window.gapi.load(gapi);
@@ -50,10 +50,11 @@ export default function Layout(props: LayoutProps){
                             scope: 'https://www.googleapis.com/auth/drive'
                         }).then(() => {
                             window.gapi.client.setToken({access_token: session.accessToken});
+                            window.gapi.client.load('drive', 'v3');
                         });
                     });
                 });
-            }    
+            }
         }
 
         //set progress bar state

@@ -9,15 +9,18 @@ import { Props, Parent, Interactive } from './types';
 interface ButtonProps extends Props, Parent, Interactive {
     gradient?: boolean
     invert?: boolean
+    customBg?: boolean
+    customFont?: boolean
 }
 
 export default function Cta(props: ButtonProps){
     return (
         <button
             className={classNames(
-                'px-4 py-2 rounded font-bold hover:shadow focus:outline-none',
+                'px-4 py-2 rounded hover:shadow focus:outline-none transition-all',
                 props.gradient && 'bg-gradient-to-r from-purple-500 to-indigo-500',
-                props.invert ? 'bg-white text-indigo-400' : 'bg-indigo-500 text-white',
+                !props.customBg && (props.invert ? 'bg-white text-indigo-400' : 'bg-indigo-500 text-white'),
+                !props.customFont && 'font-bold',
                 props.className
             )}
             onClick={props.onClick}

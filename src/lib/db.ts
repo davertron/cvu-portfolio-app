@@ -7,36 +7,36 @@ import 'firebase/storage';
 // Schema definitions
 // Note: most of the attributes here are optional because the objects passed to functions like doc.set({...}) must match schema types, but will not necessarily contain all fields
 
-interface Model { }
-
-export interface User extends Model {
+export interface User {
     email?: string
     name?: string
     bio_pic?: string
     bio?: string
 }
 
-export interface FileCollection extends Model {
+export interface FileCollection {
     drive_id?: string
     title?: string
     author_id?: string
 }
 
-export interface Artifact extends Model {
+export interface Artifact {
     drive_id?: string
     title?: string
     description?: string
-    icon?: string,
+    icon?: string
     thumbnail?: string
+    // Temporary field to indicate the artifact needs to be moved to a new folder
+    awaiting_copy?: boolean
 }
 
-export interface Post extends Model {
+export interface Post {
     body?: string
     author_id?: string
     tags?: string[]
 }
 
-export interface Comment extends Model {
+export interface Comment {
     body: string
 }
 
@@ -71,36 +71,105 @@ const store = app.firestore();
 const bucket = app.storage().ref();
 const cf = new CollectionFactory(store);
 
-const virtuals = {
-    artifacts: {
-        get: async (driveId: string, client) : Promise<Artifact> => {
-            const res = await client.drive.files.get({
-                fileId: driveId,
+interface DriveHandler<T> {
+    load?: (obj: T, ...args: string[]) => Promise<T>;
+    save?: (obj: T, ...args: string[]) => Promise<T>;
+}
+
+// Handles drive-based schema attributes
+class DriveDB {
+
+    client;
+
+    constructor(client){
+        this.client = client;
+    }
+
+    artifacts: DriveHandler<Artifact> = {
+        load: async (artifact: Artifact) : Promise<Artifact> => {
+            const snapshot = await this.client.drive.files.get({
+                fileId: artifact.drive_id,
                 fields: 'name,iconLink,thumbnailLink'
             });
-
-            const metadata = res.data;
+            const metadata = snapshot.result;
 
             if(metadata){
                 return {
+                    ...artifact,
                     title: metadata.name,
                     icon: metadata.iconLink,
-                    thumbnail: metadata.thumbnailLink
+                    thumbnail: metadata.thumbnailLink,
+                    description: metadata.description || ''
                 };
             }else{
-                return {};
+                return artifact;
             }
         },
 
-        thumbnail: async (driveThumbnailLink: string, client) : Promise<string> => {
-            if(driveThumbnailLink){
-                const res = await client.request(driveThumbnailLink);
-            }else{
+        save: async (artifact: Artifact, collection_drive_id: string) : Promise<Artifact> => {
+            if(artifact.awaiting_copy){
+                const snapshot = await this.client.drive.files.copy({
+                    resource: {
+                        title: artifact.title,
+                        description: artifact.description,
+                        parents: [collection_drive_id]
+                    },
+                    fileId: artifact.drive_id,
+                    fields: 'id'
+                });
 
+                artifact.drive_id = snapshot.result.id;
+            }else{
+                await this.client.drive.files.update({
+                    resource: {
+                        title: artifact.title,
+                        description: artifact.description
+                    },
+                    fileId: artifact.drive_id
+                });
             }
-            return '';
+
+            return artifact;
         }
-    }
+    };
+
+    file_collections: DriveHandler<[FileCollection, Artifact[]]> = {
+        save: async ([collection, artifacts]: [FileCollection, Artifact[]]) : Promise<[FileCollection, Artifact[]]> => {
+            if(!collection.drive_id){
+                const folderSnapshot = await this.client.drive.files.create({
+                    resource: {
+                        name: collection.title,
+                        mimeType: 'application/vnd.google-apps.folder'
+                    },
+                    fields: 'id'
+                });
+
+                collection.drive_id = folderSnapshot.result.id;
+            }
+
+            artifacts = await Promise.all(artifacts.map(
+                async artifact => await this.artifacts.save(artifact, collection.drive_id)
+            ));
+
+            return [collection, artifacts];
+        },
+
+        load: async ([collection, artifacts]: [FileCollection, Artifact[]]) : Promise<[FileCollection, Artifact[]]> => {
+            const folderSnapshot = await this.client.files.get({
+                fileId: collection.drive_id,
+                fields: 'name'
+            });
+
+            collection.title = folderSnapshot.result.name;
+
+            artifacts = await Promise.all(artifacts.map(
+                async artifact => await this.artifacts.load(artifact)
+            ));
+
+            return [collection, artifacts];
+        }
+    };
+
 }
 
 export default {
@@ -111,7 +180,7 @@ export default {
     artifacts: (collectionId: string) => cf.new<Artifact>('file_collections/' + collectionId + '/artifacts'),
 
     // Virtual (not directly loaded from db) model fields
-    virtuals,
+    drive: client => new DriveDB(client),
 
     // File storage bucket
     storage: (filename: string) => bucket.child(filename),
