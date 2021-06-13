@@ -4,7 +4,7 @@ import { useSession } from 'next-auth/client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 
-export interface PickerProps extends Parent {
+interface PickerProps extends Parent {
     scope: string[]
     onInput: Function
     viewId: string

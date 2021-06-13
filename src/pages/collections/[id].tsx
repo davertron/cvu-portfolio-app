@@ -1,7 +1,7 @@
 import { Authorization } from '../../lib/authorization';
 import Layout from '../../lib/components/Layout';
 import Input, { StateSetter } from '../../lib/components/Input';
-import Cta from '../../lib/components/Cta';
+import Button, { Cta } from '../../lib/components/Button';
 import Picker from '../../lib/components/Picker';
 import Error from '../../lib/components/Error';
 import db, { id as dbid, FileCollection, Artifact } from '../../lib/db';
@@ -9,17 +9,20 @@ import { classNames } from '../../lib/util';
 import { useSession } from 'next-auth/client';
 import { useRouter } from 'next/router';
 import { useState, useEffect } from 'react';
-import { MdCloudUpload, MdClose, MdSave } from 'react-icons/md';
+import { MdCloudUpload, MdClose, MdDoneAll, MdEdit } from 'react-icons/md';
 import NProgress from 'nprogress';
 
-export default function Collection(){
+interface CollectionProps {
+    creating?: boolean
+}
+
+export default function Collection(props: CollectionProps){
     const [session, loading] = useSession();
 
     const [collection, setCollection] = useState({
         title: ''
     } as FileCollection);
     const [artifacts, setArtifacts] = useState([] as Artifact[]);
-    const [artifactIds, setArtifactIds] = useState([]);
 
     const [editing, setEditing] = useState(false);
     const [saveDisabled, setSaveDisabled] = useState(false);
@@ -32,8 +35,7 @@ export default function Collection(){
 
     const router = useRouter();
     const { id } = router.query;
-    const creating = id == 'new';
-    const showInputs = creating || editing;
+    const showInputs = props.creating || editing;
 
     const setArtifact = (i: number) => {
         return (cb: StateSetter) => {
@@ -48,14 +50,17 @@ export default function Collection(){
             const snapshot = await db.file_collections.doc(cid).get();
             const dbCollection = snapshot.data();
 
-            const artifactsSnapshot = await db.artifacts(cid).get();
-            const dbArtifacts = artifactsSnapshot.docs.map(doc => doc.data());
+            if(dbCollection){
+                const artifactsSnapshot = await db.artifacts(cid).get();
+                const dbArtifacts = artifactsSnapshot.docs.map(doc => doc.data());
 
-            setArtifacts(dbArtifacts);
-            setArtifactIds(artifactsSnapshot.docs.map(doc => doc.id));
-            setCollection(dbCollection);
+                setArtifacts(dbArtifacts);
+                setCollection(dbCollection);
 
-            setDbLoaded(true);
+                setDbLoaded(true);
+            }else{
+                setError('Collection `' + id + '` not found');
+            }
         }catch(_e){
             setError('There was an error loading collection ' + id);
         }
@@ -87,7 +92,7 @@ export default function Collection(){
                 artifacts
             ]);
 
-            if(creating){
+            if(props.creating){
                 const collectionId = dbid();
                 await db.file_collections.doc(collectionId).set({
                     drive_id: driveCollection.drive_id,
@@ -96,14 +101,14 @@ export default function Collection(){
 
                 await Promise.all(
                     driveArtifacts.map(async artifact => {
-                        const artifactId = dbid();
-
-                        await db.artifacts(collectionId).doc(artifactId).set({
+                        await db.artifacts(collectionId).doc(artifact.id).set({
                             drive_id: artifact.drive_id
                         });
                     })
                 );
 
+                setArtifacts([]);
+                setCollection({title: ''});
                 router.push('/collections/' + collectionId);
             }else{
                 db.file_collections.doc(id as string).set({
@@ -111,15 +116,23 @@ export default function Collection(){
                     author_id: session.user.id
                 });
 
-                driveArtifacts.map((artifact, i) => {
-                    db.artifacts(id as string).doc(artifactIds[i]).set({
-                        drive_id: artifact.drive_id
-                    });
+                driveArtifacts.map(artifact => {
+                    const doc = db.artifacts(id as string).doc(artifact.id);
+
+                    if(artifact.awaiting_delete){
+                        doc.delete();
+                    }else{
+                        doc.set({
+                            drive_id: artifact.drive_id
+                        });
+                    }
                 });
 
+                setArtifacts(currentArtifacts => currentArtifacts.filter(artifact => !artifact.awaiting_delete));
                 setEditing(false);
             }
         }catch(e){
+            console.log(e)
             setError(`An error ${e.status ? `(${e.status})` : ''} was encountered while saving this collection`);
         }
 
@@ -128,7 +141,7 @@ export default function Collection(){
     }
 
     useEffect(() => {
-        if(session && !loading && !creating && !dbLoaded){
+        if(session && !loading && !props.creating && !dbLoaded){
             getData(id as string);
         }
 
@@ -144,7 +157,7 @@ export default function Collection(){
             onGapisLoad={() => setApisLoaded(true)}
             noPadding
         >
-            <div className="flex flex-col items-center bg-gradient-to-r from-purple-400 to-indigo-500 w-full py-16 text-white">
+            <div className="flex flex-col items-center bg-gradient-to-r from-indigo-300 to-purple-700 w-full text-white h-48 justify-center">
                 <div>
                     {showInputs ?
                         <Input
@@ -170,11 +183,11 @@ export default function Collection(){
                                 for(let i = 0; i < picked.docs.length; i++){
                                     const doc = picked.docs[i];
 
-                                    if(artifacts.filter(a => a.drive_id == doc.id).length == 0){
+                                    if(artifacts.filter(a => a.drive_id == doc.id).length == 0){ // Make sure document is not a duplicate
                                         let artifact: Artifact = {drive_id: doc.id, awaiting_copy: true};
                                         artifact = await db.drive(window.gapi.client).artifacts.load(artifact);
 
-                                        updated.push(artifact);
+                                        updated.push({...artifact, id: dbid()});
                                     }
                                 }
 
@@ -184,8 +197,8 @@ export default function Collection(){
                         viewId="DOCS"
                         multiple
                     >
-                        <Cta invert>
-                            <><MdCloudUpload className="inline mr-3"/>Add files from Drive</>
+                        <Cta invert icon={<MdCloudUpload/>}>
+                            Add files from Drive
                         </Cta>
                     </Picker>
                 </div>}
@@ -193,9 +206,9 @@ export default function Collection(){
             {error && <div className="w-full">
                 <Error error={error}/>
             </div>}
-            <div className="flex flex-wrap justify-center w-full rounded py-3 px-5 text-gray-600 mb-12">
+            <div className="flex flex-wrap justify-center w-full py-3 px-5 text-gray-600 mb-16">
                 {artifacts.map((artifact, i) => (
-                    !artifact.awaiting_delete && <div key={i} className="m-4 w-80">
+                    !artifact.awaiting_delete && <div key={artifact.id} className="m-4 w-80">
                         <div className="rounded shadow">
                             <div
                                 className="transition-all rounded-t relative group"
@@ -223,34 +236,35 @@ export default function Collection(){
                                                 customBg
                                                 noPadding
                                             />
-                                            <button
-                                                className="focus:outline-none focus:text-gray-600"
+                                            {artifacts.length > 1 && <Button
+                                                className="focus:text-gray-600"
                                                 onClick={() => {
-                                                    if(creating){
+                                                    if(artifact.awaiting_copy){
                                                         setArtifacts(currentArtifacts => currentArtifacts.filter((_a, j) => j != i));
                                                     }else{
                                                         setArtifact(i)(currentArtifact => ({...currentArtifact, awaiting_delete: true}));
                                                     }
                                                 }}
+                                                customPadding
                                             >
                                                 <MdClose/>
-                                            </button>
+                                            </Button>}
                                         </div>
                                         :
                                         <p>{artifact.description}</p>
                                     }
                                 </div>
                             </div>
-                            <div className="bg-gray-100 px-4 py-3 rounded-b text-gray-600 flex flex-row items-start shadow shadow-t-0">
+                            <div className="bg-purple-100 px-4 py-3 rounded-b text-gray-600 flex flex-row items-start shadow shadow-t-0">
                                 <img src={artifact.icon} className="w-auto h-5 pr-3 pt-1"/>
-                                <div>{artifact.title}</div>
+                                <div ><a href={artifact.web_view} target="_blank">{artifact.title}</a></div>
                             </div>
                         </div>
                     </div>
                 ))}
             </div>
-            {(creating || session && collection.author_id == session.user.id) &&
-                <div className="w-full py-4 fixed bottom-0 border border-top flex flex-row justify-center z-10">
+            {(props.creating || session && collection.author_id == session.user.id) &&
+                <div className="w-full py-4 fixed bottom-0 border border-top flex flex-row justify-center z-10 bg-white">
                     {showInputs ?
                         <>
                             {validate(collection, artifacts) && !saveDisabled ?
@@ -258,28 +272,31 @@ export default function Collection(){
                                     <Cta
                                         onClick={() => save(window.gapi.client)}
                                         className="mx-2"
+                                        icon={<MdDoneAll/>}
                                     >
                                         Save
                                     </Cta>
 
-                                    <button
+                                    {!props.creating && <Button
                                         onClick={() => setEditing(false)}
-                                        className="border rounded px-3 py-2 border-indigo-500 text-indigo-500 hover:text-white hover:bg-indigo-500 transition-all mx-2"
+                                        icon={<MdClose/>}
+                                        className="border border-indigo-500 text-indigo-500 hover:text-white hover:bg-indigo-500 mx-2"
                                     >
                                         Cancel
-                                    </button>
+                                    </Button>}
                                 </>
                                 :
-                                <Cta className="bg-gray-200 text-gray-400 cursor-default" customBg customFont>Save</Cta>
+                                <Cta className="bg-gray-200 text-gray-400 cursor-default" customBg customFont icon={<MdDoneAll/>}>Save</Cta>
                             }
                         </>
                         :
-                        <button
+                        <Button
                             onClick={() => setEditing(true)}
-                            className="border rounded px-3 py-2 border-indigo-500 text-indigo-500 hover:text-white hover:bg-indigo-500 transition-all"
+                            icon={<MdEdit/>}
+                            className="border border-indigo-500 text-indigo-500 hover:text-white hover:bg-indigo-500"
                         >
                             Edit
-                        </button>
+                        </Button>
                     }
                 </div>
             }

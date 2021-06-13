@@ -7,38 +7,44 @@ import 'firebase/storage';
 // Schema definitions
 // Note: most of the attributes here are optional because the objects passed to functions like doc.set({...}) must match schema types, but will not necessarily contain all fields
 
-export interface User {
+export interface Model {
+    id?: string
+}
+
+export interface User extends Model {
     email?: string
     name?: string
     bio_pic?: string
     bio?: string
 }
 
-export interface FileCollection {
+export interface FileCollection extends Model {
     drive_id?: string
     title?: string
     author_id?: string
+    web_view?: string
 }
 
-export interface Artifact {
+export interface Artifact extends Model {
     drive_id?: string
     title?: string
     description?: string
     icon?: string
     thumbnail?: string
+    web_view?: string
     // Temporary field to indicate the artifact needs to be moved to a new folder
     awaiting_copy?: boolean
     // Temporary field to indicate the artifact needs to be deleted
     awaiting_delete?: boolean
 }
 
-export interface Post {
+export interface Post extends Model {
     body?: string
     author_id?: string
     tags?: string[]
 }
 
-export interface Comment {
+export interface Comment extends Model {
     body: string
 }
 
@@ -51,9 +57,11 @@ const app = firebase.apps.length? firebase.apps[0] : firebase.initializeApp({
     appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 });
 
-class Converter<T> {
+class Converter<T extends Model> {
     toFirestore = (data: T) => data;
-    fromFirestore = (snapshot: firebase.firestore.QueryDocumentSnapshot) => snapshot.data() as T;
+    fromFirestore = (snapshot: firebase.firestore.QueryDocumentSnapshot) => {
+        return {...snapshot.data(), id: snapshot.id} as T
+    }
 }
 
 class CollectionFactory {
@@ -76,6 +84,7 @@ const cf = new CollectionFactory(store);
 interface DriveHandler<T> {
     load?: (obj: T, ...args: string[]) => Promise<T>;
     save?: (obj: T, ...args: string[]) => Promise<T>;
+    remove?: (obj: T, ...args: string[]) => Promise<void>;
 }
 
 // Handles drive-based schema attributes
@@ -88,12 +97,16 @@ class DriveDB {
     }
 
     artifacts: DriveHandler<Artifact> = {
+
         load: async (artifact: Artifact) : Promise<Artifact> => {
             const snapshot = await this.client.drive.files.get({
                 fileId: artifact.drive_id,
-                fields: 'name,iconLink,thumbnailLink,description'
+                fields: 'name,iconLink,thumbnailLink,webViewLink,description'
             });
             const metadata = snapshot.result;
+
+            console.log(metadata.webViewLink);
+            //this.client.request(metadata.webViewLink).then(data => console.log(data)).catch(e => console.log(e));
 
             if(metadata){
                 return {
@@ -101,6 +114,7 @@ class DriveDB {
                     title: metadata.name,
                     icon: metadata.iconLink,
                     thumbnail: metadata.thumbnailLink,
+                    web_view: metadata.webViewLink,
                     description: metadata.description || ''
                 };
             }else{
@@ -108,7 +122,7 @@ class DriveDB {
             }
         },
 
-        save: async (artifact: Artifact, collection_drive_id: string) : Promise<Artifact> => {
+        save: async (artifact: Artifact, collection_drive_id?: string) : Promise<Artifact> => {
             if(artifact.awaiting_copy){
                 const snapshot = await this.client.drive.files.copy({
                     resource: {
@@ -127,7 +141,6 @@ class DriveDB {
             }else{
                 await this.client.drive.files.update({
                     resource: {
-                        name: artifact.title,
                         description: artifact.description
                     },
                     fileId: artifact.drive_id
@@ -135,10 +148,16 @@ class DriveDB {
             }
 
             return artifact;
+        },
+
+        remove: async (artifact: Artifact) : Promise<void> => {
+            artifact.awaiting_delete = true;
+            await this.artifacts.save(artifact);
         }
     };
 
     file_collections: DriveHandler<[FileCollection, Artifact[]]> = {
+
         save: async ([collection, artifacts]: [FileCollection, Artifact[]]) : Promise<[FileCollection, Artifact[]]> => {
             if(!collection.drive_id){
                 const folderSnapshot = await this.client.drive.files.create({
@@ -167,19 +186,32 @@ class DriveDB {
         },
 
         load: async ([collection, artifacts]: [FileCollection, Artifact[]]) : Promise<[FileCollection, Artifact[]]> => {
-            const folderSnapshot = await this.client.drive.files.get({
+            const snapshot = await this.client.drive.files.get({
                 fileId: collection.drive_id,
-                fields: 'name'
+                fields: 'name,webViewLink'
             });
+            const metadata = snapshot.result;
 
-            collection.title = folderSnapshot.result.name;
+            collection.title = metadata.name;
+            collection.web_view = metadata.webViewLink;
 
             artifacts = await Promise.all(artifacts.map(
                 async artifact => await this.artifacts.load(artifact)
             ));
 
             return [collection, artifacts];
+        },
+
+        remove: async ([collection, artifacts]: [FileCollection, Artifact[]]) : Promise<void> => {
+            await this.client.drive.files.delete({
+                fileId: collection.drive_id
+            });
+
+            await Promise.all(artifacts.map(
+                async artifact => await this.artifacts.remove(artifact)
+            ));
         }
+
     };
 
 }
