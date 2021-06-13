@@ -28,6 +28,8 @@ export interface Artifact {
     thumbnail?: string
     // Temporary field to indicate the artifact needs to be moved to a new folder
     awaiting_copy?: boolean
+    // Temporary field to indicate the artifact needs to be deleted
+    awaiting_delete?: boolean
 }
 
 export interface Post {
@@ -89,7 +91,7 @@ class DriveDB {
         load: async (artifact: Artifact) : Promise<Artifact> => {
             const snapshot = await this.client.drive.files.get({
                 fileId: artifact.drive_id,
-                fields: 'name,iconLink,thumbnailLink'
+                fields: 'name,iconLink,thumbnailLink,description'
             });
             const metadata = snapshot.result;
 
@@ -110,7 +112,7 @@ class DriveDB {
             if(artifact.awaiting_copy){
                 const snapshot = await this.client.drive.files.copy({
                     resource: {
-                        title: artifact.title,
+                        name: artifact.title,
                         description: artifact.description,
                         parents: [collection_drive_id]
                     },
@@ -119,10 +121,13 @@ class DriveDB {
                 });
 
                 artifact.drive_id = snapshot.result.id;
+                artifact.awaiting_copy = false;
+            }else if(artifact.awaiting_delete){
+                await this.client.drive.files.delete({fileId: artifact.drive_id});
             }else{
                 await this.client.drive.files.update({
                     resource: {
-                        title: artifact.title,
+                        name: artifact.title,
                         description: artifact.description
                     },
                     fileId: artifact.drive_id
@@ -145,6 +150,13 @@ class DriveDB {
                 });
 
                 collection.drive_id = folderSnapshot.result.id;
+            }else{
+                await this.client.drive.files.update({
+                    resource: {
+                        name: collection.title
+                    },
+                    fileId: collection.drive_id
+                })
             }
 
             artifacts = await Promise.all(artifacts.map(
@@ -155,7 +167,7 @@ class DriveDB {
         },
 
         load: async ([collection, artifacts]: [FileCollection, Artifact[]]) : Promise<[FileCollection, Artifact[]]> => {
-            const folderSnapshot = await this.client.files.get({
+            const folderSnapshot = await this.client.drive.files.get({
                 fileId: collection.drive_id,
                 fields: 'name'
             });

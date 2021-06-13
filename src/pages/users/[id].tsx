@@ -21,9 +21,8 @@ export default function Profile(){
     const router = useRouter();
     const { id } = router.query;
 
-    async function getData(userOnly?: boolean){
-        if(id){
-            let uid = id as string;
+    async function getData(uid: string, userOnly?: boolean){
+        if(uid){
             const doc = await db.users.doc(uid).get();
 
             if(doc.exists){
@@ -43,7 +42,7 @@ export default function Profile(){
     }
 
     useEffect(() => {
-        getData();
+        getData(id as string);
     }, [setUser, setError, id]);
 
     return (
@@ -86,7 +85,7 @@ export default function Profile(){
                             <p className="my-3">
                                 {collections.length > 0 ?
                                     collections.map(collection => {
-                                        <span>{collection.name}</span>
+                                        <span>{collection.title}</span>
                                     })
                                     :
                                     <span>No collections yet. {session.user.id == id && <Link href="/collections/new"><a className="text-blue-500 hover:underline">Add one</a></Link>}</span>
@@ -110,7 +109,7 @@ export default function Profile(){
                     <div className="ml-3 my-6 flex flex-col">
                         {session.user.id == id &&
                             <button className="rounded-full border border-gray-500 p-2 hover:bg-gray-500 hover:text-white focus:outline-none my-1 transition-colors" onClick={async () => {
-                                if(editing) await getData(true);
+                                if(editing) await getData(id, true);
                                 setEditing(!editing);
                             }}>
                                 {editing ? <MdClose/> : <MdEdit/>}
