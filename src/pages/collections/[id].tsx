@@ -148,7 +148,7 @@ export default function Collection(props: CollectionProps){
         if(dbLoaded && !driveLoaded && apisLoaded){
             getDriveData(window.gapi.client);
         }
-    }, [loading, dbLoaded, driveLoaded, apisLoaded]);
+    }, [loading, dbLoaded, driveLoaded, apisLoaded, id]);
 
     return (
         <Layout
