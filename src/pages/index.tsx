@@ -1,4 +1,4 @@
-import Cta from '../lib/components/Cta';
+import { Cta } from '../lib/components/Button';
 import Layout from '../lib/components/Layout';
 import { useSession, signIn } from 'next-auth/client';
 import { CgGoogle } from 'react-icons/cg';
@@ -20,8 +20,8 @@ export default function Index(){
                 </div>
                 <h1 className="text-3xl text-gray-700 mb-10 mt-3"><span className="font-bold">Upgrade</span> your learning with MyPortfolio</h1>
                 {!loading && !session &&
-                    <Cta onClick={() => signIn('google')}>
-                        <p className="text-lg px-2"><CgGoogle className="inline mr-3" size="1em"/> Continue with Google</p>
+                    <Cta onClick={() => signIn('google')} icon={<CgGoogle size="1.1em"/>} className="text-lg" gradient>
+                        Continue with Google
                     </Cta>
                 }
             </div>

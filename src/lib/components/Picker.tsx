@@ -2,8 +2,9 @@ import { Parent } from './types';
 import loadScript from 'load-script';
 import { useSession } from 'next-auth/client';
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
 
-export interface PickerProps extends Parent {
+interface PickerProps extends Parent {
     scope: string[]
     onInput: Function
     viewId: string
@@ -16,8 +17,9 @@ const developerKey = process.env.NEXT_PUBLIC_API_KEY;
 export default function Picker(props: PickerProps){
     const [session, loading] = useSession();
     const [createPicker, setCreatePicker] = useState(false);
+    const router = useRouter();
 
-    function create(google, token){
+    function create(google, token: string){
         const picker = new google.picker.PickerBuilder()
             .addView(google.picker.ViewId[props.viewId])
             .setOAuthToken(token)
@@ -34,7 +36,13 @@ export default function Picker(props: PickerProps){
     }
 
     useEffect(() => {
-        if(createPicker && session && window.google) create(window.google, session.accessToken);
+        if(createPicker && session && window.google){
+            if(session.error){
+                router.push('/');
+            }else{
+                create(window.google, session.accessToken);
+            }
+        }
 
         if(!window.google){
             loadScript('https://apis.google.com/js/api.js', () => {

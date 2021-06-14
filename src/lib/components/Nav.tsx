@@ -1,11 +1,11 @@
 /**
- /** 
+ /**
  * Nav Component
- * Creates site navigation   
+ * Creates site navigation
  */
 
 import { classNames, homepage } from '../util';
-import { Props, Parent, Interactive } from './types';
+import { Props, Parent, Interactive, Child } from './types';
 import { useState, useEffect } from 'react';
 import { Disclosure, Menu } from '@headlessui/react'; //expandable and collapsible elements
 import { MdClose, MdMenu, MdAdd } from 'react-icons/md';
@@ -98,12 +98,12 @@ export default function Nav(){
 }
 
 interface LinkProps extends Props, Interactive, Parent {
-    href?: string,
-    display?: string,
-    name?: JSX.Element | string,
-    important?: boolean,
-    img?: string,
-    cta?: boolean,
+    href?: string
+    display?: string
+    name?: Child
+    important?: boolean
+    img?: string
+    cta?: boolean
     dropdown?: LinkProps[]
 }
 

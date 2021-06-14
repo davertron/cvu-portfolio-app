@@ -1,5 +1,7 @@
 import { CSSProperties, MouseEventHandler } from 'react';
 
+export type Child = JSX.Element | string;
+
 export interface Props {
     className?: string
     style?: CSSProperties
@@ -7,7 +9,7 @@ export interface Props {
 }
 
 export interface Parent {
-    children?: JSX.Element | JSX.Element[] | string
+    children?: Child | Child[]
 }
 
 export interface Interactive {

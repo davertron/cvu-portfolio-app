@@ -18,36 +18,70 @@ export default function Profile(){
     const [editing, setEditing] = useState(false);
     const [files, setFiles] = useState([]);
 
+    const [dbLoaded, setDbLoaded] = useState(false);
+    const [driveLoaded, setDriveLoaded] = useState(false);
+    const [apisLoaded, setApisLoaded] = useState(false);
+
     const router = useRouter();
     const { id } = router.query;
 
-    async function getData(userOnly?: boolean){
-        if(id){
-            let uid = id as string;
-            const doc = await db.users.doc(uid).get();
+    async function getData(uid: string, userOnly?: boolean){
+        if(uid){
+            try {
+                const doc = await db.users.doc(uid).get();
 
-            if(doc.exists){
-                setUser(doc.data());
-                setError(null);
+                if(doc.exists){
+                    setUser(doc.data());
+                    setError(null);
 
-                if(!userOnly){
-                    const fileCollectionsRef = await db.file_collections.where('author_id', '==', uid).get();
-                    const fileCollections = fileCollectionsRef.docs.map(doc => doc.data());
-                    setCollections(fileCollections);
+                    if(!userOnly){
+                        const fileCollectionsRef = await db.file_collections.where('author_id', '==', uid).get();
+                        const fileCollections = fileCollectionsRef.docs.map(doc => doc.data());
+                        setCollections(fileCollections);
+                    }
+
+                    setDbLoaded(true);
+                }else{
+                    setError('Could not find user with id ' + id);
+                    setUser(null);
                 }
-            }else{
-                setError('Could not find user with id ' + id);
-                setUser(null);
+            }catch(_e){
+                setError('There was an error loading this user');
             }
         }
     }
 
+    async function getDriveData(client){
+        try {
+            const drive = db.drive(client);
+            const updated = await Promise.all(collections.map(async collection => {
+                const [driveCollection] = await drive.file_collections.load([collection, []]);
+                return driveCollection;
+            }));
+
+            setCollections(updated);
+            setDriveLoaded(true);
+        }catch(_e){
+            setError('There was an error syncing with drive');
+        }
+    }
+
     useEffect(() => {
-        getData();
-    }, [setUser, setError, id]);
+        if(!dbLoaded){
+            getData(id as string);
+        }
+
+        if(dbLoaded && !driveLoaded && apisLoaded){
+            getDriveData(window.gapi.client);
+        }
+    }, [id, dbLoaded, apisLoaded, driveLoaded]);
 
     return (
-        <Layout authorization={Authorization.USER}>
+        <Layout
+            authorization={Authorization.USER}
+            gapis={[]}
+            onGapisLoad={() => setApisLoaded(true)}
+        >
             {error && <Error error={error}/>}
             {user && session &&
                 <div className="flex flex-wrap justify-center w-screen rounded py-3 px-5 text-gray-600">
@@ -83,11 +117,17 @@ export default function Profile(){
                         }
                         <div>
                             <h3 className="font-bold text-gray-700 text-lg my-2">Tags</h3>
-                            <p className="my-3">
+                            <hr className="block"/>
+                            <p className="my-3 flex flex-wrap">
                                 {collections.length > 0 ?
-                                    collections.map(collection => {
-                                        <span>{collection.name}</span>
-                                    })
+                                    //JSON.stringify(collections.map(collection => collection.title))
+                                    collections.map(collection => (
+                                        <Link href={'/collections/' + collection.id} key={collection.id}>
+                                            <a className="py-2 px-4 text-sm rounded-full m-1 bg-purple-200 text-purple-700">
+                                                {collection.title}
+                                            </a>
+                                        </Link>
+                                    ))
                                     :
                                     <span>No collections yet. {session.user.id == id && <Link href="/collections/new"><a className="text-blue-500 hover:underline">Add one</a></Link>}</span>
                                 }
@@ -110,7 +150,7 @@ export default function Profile(){
                     <div className="ml-3 my-6 flex flex-col">
                         {session.user.id == id &&
                             <button className="rounded-full border border-gray-500 p-2 hover:bg-gray-500 hover:text-white focus:outline-none my-1 transition-colors" onClick={async () => {
-                                if(editing) await getData(true);
+                                if(editing) await getData(id, true);
                                 setEditing(!editing);
                             }}>
                                 {editing ? <MdClose/> : <MdEdit/>}
