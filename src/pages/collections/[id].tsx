@@ -8,8 +8,9 @@ import db, { id as dbid, FileCollection, Artifact } from '../../lib/db';
 import { classNames } from '../../lib/util';
 import { useSession } from 'next-auth/client';
 import { useRouter } from 'next/router';
+import Link from 'next/link';
 import { useState, useEffect } from 'react';
-import { MdCloudUpload, MdClose, MdDoneAll, MdEdit } from 'react-icons/md';
+import { MdCloudUpload, MdClose, MdDoneAll, MdEdit, MdOpenInNew } from 'react-icons/md';
 import NProgress from 'nprogress';
 
 interface CollectionProps {
@@ -37,9 +38,9 @@ export default function Collection(props: CollectionProps){
     const { id } = router.query;
     const showInputs = props.creating || editing;
 
-    const setArtifact = (i: number) => {
+    const setArtifact = (aid: string) => {
         return (cb: StateSetter) => {
-            setArtifacts(currentArtifacts => currentArtifacts.map((a, j) => j == i ? cb(a) : a));
+            setArtifacts(currentArtifacts => currentArtifacts.map(a => a.id == aid ? cb(a) : a));
         }
     }
 
@@ -68,7 +69,8 @@ export default function Collection(props: CollectionProps){
 
     async function getDriveData(client){
         try {
-            const [driveCollection, driveArtifacts] = await db.drive(client).file_collections.load([
+            const drive = await db.drive(client);
+            const [driveCollection, driveArtifacts] = await drive.file_collections.load([
                 collection,
                 artifacts
             ]);
@@ -87,7 +89,8 @@ export default function Collection(props: CollectionProps){
         setSaveDisabled(true);
 
         try {
-            const [driveCollection, driveArtifacts] = await db.drive(client).file_collections.save([
+            const drive = await db.drive(client);
+            const [driveCollection, driveArtifacts] = await drive.file_collections.save([
                 collection,
                 artifacts
             ]);
@@ -157,8 +160,8 @@ export default function Collection(props: CollectionProps){
             onGapisLoad={() => setApisLoaded(true)}
             noPadding
         >
-            <div className="flex flex-col items-center bg-gradient-to-r from-indigo-300 to-purple-700 w-full text-white h-48 justify-center">
-                <div>
+            <div className="flex flex-col items-center bg-gradient-to-r from-indigo-300 to-purple-700 w-full text-white h-52 justify-center">
+                <div className="my-2">
                     {showInputs ?
                         <Input
                             type="text"
@@ -170,38 +173,45 @@ export default function Collection(props: CollectionProps){
                             customBg
                         />
                         :
-                        <h1 className="font-bold text-2xl text-center">{collection.title}</h1>
+                        <h1 className="font-bold text-2xl text-center my-2">{collection.title}</h1>
                     }
                 </div>
-                {showInputs && <div className="my-7">
-                    <Picker
-                        scope={[]}
-                        onInput={async picked => {
-                            if(picked.docs){
-                                let updated = [];
+                <div className="my-4">
+                    {showInputs ?
+                        <Picker
+                            scope={[]}
+                            onInput={async picked => {
+                                if(picked.docs){
+                                    let updated = [];
+                                    const drive = await db.drive(window.gapi.client);
 
-                                for(let i = 0; i < picked.docs.length; i++){
-                                    const doc = picked.docs[i];
+                                    for(let i = 0; i < picked.docs.length; i++){
+                                        const doc = picked.docs[i];
 
-                                    if(artifacts.filter(a => a.drive_id == doc.id).length == 0){ // Make sure document is not a duplicate
-                                        let artifact: Artifact = {drive_id: doc.id, awaiting_copy: true};
-                                        artifact = await db.drive(window.gapi.client).artifacts.load(artifact);
+                                        if(artifacts.filter(a => a.drive_id == doc.id).length == 0){ // Make sure document is not a duplicate
+                                            let artifact: Artifact = {drive_id: doc.id, awaiting_copy: true};
+                                            artifact = await drive.artifacts.load(artifact);
 
-                                        updated.push({...artifact, id: dbid()});
+                                            updated.push({...artifact, id: dbid()});
+                                        }
                                     }
-                                }
 
-                                setArtifacts(currentArtifacts => [...currentArtifacts, ...updated]);
-                            }
-                        }}
-                        viewId="DOCS"
-                        multiple
-                    >
-                        <Cta invert icon={<MdCloudUpload/>}>
-                            Add files from Drive
+                                    setArtifacts(currentArtifacts => [...currentArtifacts, ...updated]);
+                                }
+                            }}
+                            viewId="DOCS"
+                            multiple
+                        >
+                            <Cta invert icon={<MdCloudUpload/>}>
+                                Add files from Drive
+                            </Cta>
+                        </Picker>
+                        :
+                        <Cta icon={<MdOpenInNew/>} invert>
+                            {collection.web_view && <Link href={collection.web_view}><a>Open in drive</a></Link>}
                         </Cta>
-                    </Picker>
-                </div>}
+                    }
+                </div>
             </div>
             {error && <div className="w-full">
                 <Error error={error}/>
@@ -218,7 +228,7 @@ export default function Collection(props: CollectionProps){
                                     minHeight: '200px'
                                 }}
                             >
-                                <div
+                                {(showInputs || artifact.description != '') && <div
                                     className={classNames(
                                         'transition-all p-4 bg-white h-full w-full absolute text-gray-500 rounded-t',
                                         showInputs ? 'opacity-100 bg-opacity-90' : 'opacity-0 group-hover:opacity-100 group-hover:bg-opacity-90'
@@ -232,7 +242,7 @@ export default function Collection(props: CollectionProps){
                                                 name={'description_' + i}
                                                 className="h-full flex-grow"
                                                 value={artifact.description}
-                                                setForm={setArtifact(i)}
+                                                setForm={setArtifact(artifact.id)}
                                                 customBg
                                                 noPadding
                                             />
@@ -242,7 +252,7 @@ export default function Collection(props: CollectionProps){
                                                     if(artifact.awaiting_copy){
                                                         setArtifacts(currentArtifacts => currentArtifacts.filter((_a, j) => j != i));
                                                     }else{
-                                                        setArtifact(i)(currentArtifact => ({...currentArtifact, awaiting_delete: true}));
+                                                        setArtifact(artifact.id)(currentArtifact => ({...currentArtifact, awaiting_delete: true}));
                                                     }
                                                 }}
                                                 customPadding
@@ -253,9 +263,9 @@ export default function Collection(props: CollectionProps){
                                         :
                                         <p>{artifact.description}</p>
                                     }
-                                </div>
+                                </div>}
                             </div>
-                            <div className="bg-purple-100 px-4 py-3 rounded-b text-gray-600 flex flex-row items-start shadow shadow-t-0">
+                            <div className="bg-gray-100 px-4 py-3 rounded-b text-gray-600 flex flex-row items-start shadow shadow-t-0">
                                 <img src={artifact.icon} className="w-auto h-5 pr-3 pt-1"/>
                                 <div ><a href={artifact.web_view} target="_blank">{artifact.title}</a></div>
                             </div>

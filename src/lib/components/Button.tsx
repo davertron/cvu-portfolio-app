@@ -32,7 +32,7 @@ export default function Button(props: ButtonProps){
         >
             {props.icon ?
                 <div className="flex items-center">
-                    <div className="mr-3">{props.icon}</div>
+                    <div className="mr-2">{props.icon}</div>
                     <div>{props.children}</div>
                 </div>
                 :

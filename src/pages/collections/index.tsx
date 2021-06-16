@@ -42,7 +42,7 @@ export default function Collection(){
 
     async function getDriveData(client){
         try {
-            const drive = db.drive(client);
+            const drive = await db.drive(client);
             const updated = await Promise.all(collections.map(async collection => {
                 const [driveCollection] = await drive.file_collections.load([collection, []]);
                 return driveCollection;
@@ -60,8 +60,9 @@ export default function Collection(){
             if(confirm('Are you sure you want to delete collection "' + collection.title + '"?')){
                 const snapshot = await db.artifacts(collection.id).get();
                 const collectionArtifacts = snapshot.docs.map(doc => doc.data());
+                const drive = await db.drive(client);
 
-                db.drive(client).file_collections.remove([
+                drive.file_collections.remove([
                     collection,
                     collectionArtifacts
                 ]);

@@ -11,6 +11,8 @@ interface InputProps extends Props, Parent {
     type: string
     name?: string
     value?: any
+    onBlur?: FormEventHandler
+    onFocus?: FormEventHandler
     onInput?: FormEventHandler
     onError?: FormEventHandler
     setForm?: StateSetter
@@ -18,6 +20,7 @@ interface InputProps extends Props, Parent {
     placeholder?: string
     customBg?: boolean
     noPadding?: boolean
+    customRounding?: boolean
 }
 
 function defaultHandler(setForm: StateSetter) : FormEventHandler {
@@ -54,9 +57,10 @@ function fileHandler(setFiles: StateSetter, name?: string) : (files: any[]) => v
 
 export default function Input(props: InputProps){
     const baseClasses = classNames(
-        'rounded resize-none focus:outline-none',
+        'resize-none focus:outline-none',
         !props.customBg && 'bg-gray-50',
-        !props.noPadding && 'px-3 py-2'
+        !props.noPadding && 'px-3 py-2',
+        !props.customRounding && 'rounded'
     );
     const handler = props.onInput || props.setForm ? defaultHandler(props.setForm) : () => {};
     const [error, setError] = useState(null);
@@ -65,6 +69,8 @@ export default function Input(props: InputProps){
         return (
             <textarea
                 onInput={handler}
+                onBlur={props.onBlur}
+                onFocus={props.onFocus}
                 className={classNames(
                     baseClasses,
                     props.className
@@ -72,6 +78,7 @@ export default function Input(props: InputProps){
                 value={props.value}
                 name={props.name}
                 placeholder={props.placeholder}
+                id={props.id}
             >
             </textarea>
         );
@@ -84,6 +91,9 @@ export default function Input(props: InputProps){
                     props.value ? 'bg-indigo-400' : 'bg-gray-200',
                     'relative inline-flex items-center h-6 rounded-full w-11 focus:outline-none transition-colors'
                 )}
+                id={props.id}
+                onFocus={props.onFocus}
+                onBlur={props.onBlur}
             >
                 <span
                     className={classNames(
@@ -107,6 +117,9 @@ export default function Input(props: InputProps){
               accepts={['image/png', 'image/jpg', 'image/svg', 'image/bmp', 'image/jpeg']}
               maxFileSize={10000000}
               minFileSize={0}
+              id={props.id}
+              onFocus={props.onFocus}
+              onBlur={props.onBlur}
             >
                 {error && <Error error={error}/>}
                 {props.children}
@@ -117,9 +130,12 @@ export default function Input(props: InputProps){
             <input
                 type={props.type}
                 value={props.value}
+                onBlur={props.onBlur}
+                onFocus={props.onFocus}
                 onInput={handler}
                 name={props.name}
                 placeholder={props.placeholder}
+                id={props.id}
                 className={classNames(
                     baseClasses,
                     props.className

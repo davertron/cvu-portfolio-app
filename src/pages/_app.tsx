@@ -6,8 +6,14 @@ import Head from 'next/head';
 
 declare global {
     interface Window {
-        google: any,
+        google: any
         gapi: any
+    }
+
+    interface EventTarget {
+        value: any
+        name: string
+        type: string
     }
 }
 

@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
+import { getSession } from 'next-auth/client';
 
 import firebase from 'firebase/app';
 import 'firebase/firestore';
@@ -39,9 +40,13 @@ export interface Artifact extends Model {
 }
 
 export interface Post extends Model {
+    title?: string
     body?: string
+    created_at?: Date
     author_id?: string
     tags?: string[]
+    // Temporary field to indicate the post hasn't been saved
+    awaiting_save?: boolean
 }
 
 export interface Comment extends Model {
@@ -92,8 +97,19 @@ class DriveDB {
 
     client;
 
-    constructor(client){
+    constructor(client, token){
+        client.setToken({access_token: token});
         this.client = client;
+    }
+
+    static async init(client) : Promise<DriveDB> {
+        const session = await getSession();
+
+        if(!session.error){
+            return new DriveDB(client, session.accessToken);
+        }else{
+            throw new Error('OAuth session is no longer valid');
+        }
     }
 
     artifacts: DriveHandler<Artifact> = {
@@ -224,7 +240,7 @@ export default {
     artifacts: (collectionId: string) => cf.new<Artifact>('file_collections/' + collectionId + '/artifacts'),
 
     // Virtual (not directly loaded from db) model fields
-    drive: client => new DriveDB(client),
+    drive: async client => await DriveDB.init(client),
 
     // File storage bucket
     storage: (filename: string) => bucket.child(filename),

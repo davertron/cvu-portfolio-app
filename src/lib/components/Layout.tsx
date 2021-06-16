@@ -53,7 +53,6 @@ export default function Layout(props: LayoutProps){
                                 clientId: clientId,
                                 scope: 'https://www.googleapis.com/auth/drive'
                             }).then(() => {
-                                window.gapi.client.setToken({access_token: session.accessToken});
                                 window.gapi.client.load('drive', 'v3', () => {
                                     if(props.onGapisLoad) props.onGapisLoad();
                                 });

@@ -5,10 +5,15 @@ module.exports = {
         fontFamily: {
             'sans': ['Helvetica', 'sans-serif']
         },
-        extend: {},
+        extend: {
+            transitionProperty: {
+                'height': 'height'
+            }
+        },
     },
     variants: {
-        extend: {},
+        backgroundColor: ['responsive', 'hover', 'focus', 'group-hover', 'group-focus', 'active'],
+        extend: {}
     },
     plugins: [],
 }
