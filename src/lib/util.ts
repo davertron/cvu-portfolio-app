@@ -1,3 +1,4 @@
+import { Timestamp } from './db';
 import { Session } from 'next-auth';
 
 declare global {
@@ -41,3 +42,13 @@ export function merge<T>(original: T[], update: T[], uniqueProp: string) : T[] {
 
     return merged.concat(update);
 }
+
+const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+export const dateString = (timestamp: Timestamp) => {
+    const date = timestamp.toDate();
+
+    return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`
+}
+
+export const valueOf = (timestamp: Timestamp) => timestamp.toDate().valueOf();

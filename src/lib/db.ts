@@ -28,13 +28,12 @@ export interface FileCollection extends Model {
 
 export interface Artifact extends Model {
     drive_id?: string
+    shortcut_id?: string
     title?: string
     description?: string
     icon?: string
     thumbnail?: string
     web_view?: string
-    // Temporary field to indicate the artifact needs to be moved to a new folder
-    awaiting_copy?: boolean
     // Temporary field to indicate the artifact needs to be deleted
     awaiting_delete?: boolean
 }
@@ -42,7 +41,7 @@ export interface Artifact extends Model {
 export interface Post extends Model {
     title?: string
     body?: string
-    created_at?: Date
+    created_at?: firebase.firestore.Timestamp
     author_id?: string
     tags?: string[]
     // Temporary field to indicate the post hasn't been saved
@@ -97,7 +96,7 @@ class DriveDB {
 
     client;
 
-    constructor(client, token){
+    constructor(client, token: string){
         client.setToken({access_token: token});
         this.client = client;
     }
@@ -121,9 +120,6 @@ class DriveDB {
             });
             const metadata = snapshot.result;
 
-            console.log(metadata.webViewLink);
-            //this.client.request(metadata.webViewLink).then(data => console.log(data)).catch(e => console.log(e));
-
             if(metadata){
                 return {
                     ...artifact,
@@ -139,28 +135,30 @@ class DriveDB {
         },
 
         save: async (artifact: Artifact, collection_drive_id?: string) : Promise<Artifact> => {
-            if(artifact.awaiting_copy){
-                const snapshot = await this.client.drive.files.copy({
-                    resource: {
-                        name: artifact.title,
-                        description: artifact.description,
-                        parents: [collection_drive_id]
-                    },
-                    fileId: artifact.drive_id,
-                    fields: 'id'
-                });
-
-                artifact.drive_id = snapshot.result.id;
-                artifact.awaiting_copy = false;
-            }else if(artifact.awaiting_delete){
-                await this.client.drive.files.delete({fileId: artifact.drive_id});
+            if(artifact.awaiting_delete){
+                await this.client.drive.files.delete({fileId: artifact.shortcut_id});
             }else{
                 await this.client.drive.files.update({
                     resource: {
-                        description: artifact.description
+                        description: artifact.description,
                     },
                     fileId: artifact.drive_id
                 });
+
+                if(!artifact.shortcut_id){
+                    const snapshot = await this.client.drive.files.create({
+                        resource: {
+                            mimeType: 'application/vnd.google-apps.shortcut',
+                            parents: [collection_drive_id],
+                            shortcutDetails: {
+                                targetId: artifact.drive_id
+                            }
+                        },
+                        fields: 'id'
+                    });
+
+                    artifact.shortcut_id = snapshot.result.id;
+                }
             }
 
             return artifact;
@@ -247,6 +245,9 @@ export default {
     avatars: (filename: string) => bucket.child('avatars/' + filename)
 };
 
+export type Timestamp = firebase.firestore.Timestamp;
+
 // db-specific utils
 
 export const id = () => uuidv4();
+export const now = () => firebase.firestore.Timestamp.now();

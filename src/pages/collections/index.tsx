@@ -2,7 +2,7 @@ import { Authorization } from '../../lib/authorization';
 import Layout from '../../lib/components/Layout';
 import Error from '../../lib/components/Error';
 import Button, { Cta } from '../../lib/components/Button';
-import db, { FileCollection, Artifact } from '../../lib/db';
+import db, { FileCollection } from '../../lib/db';
 import { useSession } from 'next-auth/client';
 import { useState, useEffect } from 'react';
 import { MdOpenInNew, MdAdd, MdClose } from 'react-icons/md';
@@ -113,7 +113,7 @@ export default function Collection(){
                                 <div className="text-gray-600 px-4 pt-1 pb-2">
                                     <div className="flex">
                                         <p className="text-lg font-bold my-2 h-full flex-grow">
-                                            <Link href={'/collections/' + collection.id}><a>{collection.title}</a></Link>
+                                            {collection.title}
                                         </p>
                                         <Button
                                             customPadding
@@ -124,13 +124,22 @@ export default function Collection(){
                                     </div>
                                     <p className="my-2">{artifacts[collection.id]} artifact{artifacts[collection.id] > 1 && 's'}</p>
                                 </div>
-                                <Button icon={<MdOpenInNew/>} className="bg-purple-300 rounded-b w-full hover:text-white hover:bg-purple-500" customRounding>
-                                    <a href={collection.web_view} target="_blank">View in drive</a>
+                                <Button
+                                    icon={<MdOpenInNew/>}
+                                    className="bg-purple-300 rounded-b w-full hover:text-white hover:bg-purple-500"
+                                    href={'/collections/' + collection.id}
+                                    customRounding
+                                >
+                                    View
                                 </Button>
                             </div>
                         ))}
-                        <Cta className="m-4 w-28 text-center flex items-center justify-center bg-gray-200 text-gray-500 bg-gradient-to-r hover:from-purple-500 hover:to-indigo-500 hover:text-white" customBg>
-                            <div><Link href="/collections/new"><a><MdAdd size="2em"/></a></Link></div>
+                        <Cta
+                            className="m-4 w-28 text-center flex items-center justify-center bg-gray-100 text-gray-500 bg-gradient-to-r hover:from-purple-500 hover:to-indigo-500 hover:text-white"
+                            href="/collections/new"
+                            customBg
+                        >
+                            <MdAdd size="2em"/>
                         </Cta>
                     </>
                     :

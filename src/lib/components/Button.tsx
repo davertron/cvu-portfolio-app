@@ -5,12 +5,18 @@
 
 import { classNames } from '../util';
 import { Props, Parent, Interactive, Child } from './types';
+import { MouseEventHandler } from 'react';
+import Link from 'next/link';
 
-interface ButtonProps extends Props, Parent, Interactive {
+export interface StaticButtonProps extends Props, Parent {
     icon?: Child
+    href?: string
+    target?: string
     customRounding?: boolean
     customPadding?: boolean
 }
+
+export interface ButtonProps extends StaticButtonProps, Interactive { }
 
 interface CtaProps extends ButtonProps {
     gradient?: boolean
@@ -20,6 +26,14 @@ interface CtaProps extends ButtonProps {
 }
 
 export default function Button(props: ButtonProps){
+    const content = props.icon ?
+        <div className="flex items-center">
+            <div className="mr-2">{props.icon}</div>
+            <div>{props.children}</div>
+        </div>
+        :
+        props.children;
+
     return (
         <button
             className={classNames(
@@ -28,15 +42,15 @@ export default function Button(props: ButtonProps){
                 !props.customPadding && 'px-4 py-2',
                 props.className
             )}
-            onClick={props.onClick}
+            onClick={props.onClick as MouseEventHandler}
         >
-            {props.icon ?
-                <div className="flex items-center">
-                    <div className="mr-2">{props.icon}</div>
-                    <div>{props.children}</div>
-                </div>
+            {props.href ?
+                props.target ?
+                    <a href={props.href} target={props.target}>{content}</a>
+                    :
+                    <Link href={props.href}><a>{content}</a></Link>
                 :
-                props.children
+                content
             }
         </button>
     );
@@ -46,7 +60,7 @@ export function Cta(props: CtaProps){
     // Assign props to an extensible object
     let modified = {...props};
     modified.className = classNames(
-        'hover:shadow',
+        props.invert ? 'hover:shadow-lg' : 'hover:shadow',
         props.gradient && 'bg-gradient-to-r from-purple-500 to-indigo-500',
         !props.customBg && (props.invert ? 'bg-white text-indigo-400' : 'bg-indigo-500 text-white'),
         !props.customFont && 'font-bold',

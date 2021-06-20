@@ -5,3 +5,7 @@
 html, body {
     overflow-x: hidden;
 }
+
+.flex-grow {
+    flex-grow: 1;
+}

@@ -20,8 +20,11 @@ export default function Picker(props: PickerProps){
     const router = useRouter();
 
     function create(google, token: string){
+        const view = new google.picker.DocsView(google.picker.ViewId[props.viewId]);
+        view.setOwnedByMe(true);
+
         const picker = new google.picker.PickerBuilder()
-            .addView(google.picker.ViewId[props.viewId])
+            .addView(view)
             .setOAuthToken(token)
             .setDeveloperKey(developerKey)
             .setCallback(props.onInput);

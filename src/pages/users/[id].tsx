@@ -1,6 +1,7 @@
 import Layout from '../../lib/components/Layout';
 import Error from '../../lib/components/Error';
 import Input from '../../lib/components/Input';
+import Tag from '../../lib/components/Tag';
 import { Authorization } from '../../lib/authorization';
 import db, { FileCollection } from '../../lib/db';
 import { MdEdit, MdClose, MdCheck } from 'react-icons/md';
@@ -85,7 +86,7 @@ export default function Profile(){
             {error && <Error error={error}/>}
             {user && session &&
                 <div className="flex flex-wrap justify-center w-screen rounded py-3 px-5 text-gray-600">
-                    <div className="m-6 flex-column">
+                    <div className="m-6 flex-column w-64">
                         {editing ?
                             <Input
                                 type="file"
@@ -116,16 +117,14 @@ export default function Profile(){
                             </div>
                         }
                         <div>
-                            <h3 className="font-bold text-gray-700 text-lg my-2">Tags</h3>
+                            <h3 className="font-bold text-gray-700 text-lg my-2">Collections</h3>
                             <hr className="block"/>
-                            <p className="my-3 flex flex-wrap">
+                            <p className="my-1 flex flex-wrap">
                                 {collections.length > 0 ?
                                     collections.map(collection => (
-                                        <Link href={'/collections/' + collection.id} key={collection.id}>
-                                            <a className="py-2 px-4 text-sm rounded-full m-1 bg-purple-200 text-purple-700">
-                                                {collection.title}
-                                            </a>
-                                        </Link>
+                                        <Tag href={'/collections/' + collection.id} className="mr-4 my-2">
+                                            {collection.title}
+                                        </Tag>
                                     ))
                                     :
                                     <span>No collections yet. {session.user.id == id && <Link href="/collections/new"><a className="text-blue-500 hover:underline">Add one</a></Link>}</span>

@@ -8,6 +8,7 @@ import { classNames, homepage } from '../util';
 import { Props, Parent, Interactive, Child } from './types';
 import { useState, useEffect } from 'react';
 import { Disclosure, Menu } from '@headlessui/react'; //expandable and collapsible elements
+import { MouseEventHandler } from 'react';
 import { MdClose, MdMenu, MdAdd } from 'react-icons/md';
 import { useSession, signOut } from 'next-auth/client';
 import Link from 'next/link';
@@ -21,7 +22,7 @@ export default function Nav(){
             nav = [
                 {children: <><MdAdd className="inline mr-1"/>New Collection</>, href: '/collections/new', cta: true},
                 {children: 'Collections', href: '/collections'},
-                {children: 'Feed', href: '/feed'},
+                {children: 'Blog', href: '/blog'},
                 {children: 'Profile', href: homepage(session), img: session.user.image, dropdown: [
                     {children: 'Profile', href: homepage(session)},
                     {children: 'Sign out', onClick: () => signOut()}
@@ -154,7 +155,7 @@ function NavLink(props: LinkProps){
     }else{
         return (
             <a
-                onClick={props.onClick}
+                onClick={props.onClick as MouseEventHandler}
                 className={classNames(
                     !props.cta && (active || props.important ? 'text-indigo-500' : 'text-gray-500 hover:text-indigo-500'),
                     props.cta && 'text-white bg-gradient-to-r from-purple-500 to-indigo-500 hover:shadow',
