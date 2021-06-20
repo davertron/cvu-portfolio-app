@@ -6,7 +6,7 @@ async function refreshAccessToken(token){
     try {
         const url = 'https://oauth2.googlepis.com/token?' +
             new URLSearchParams({
-                client_id: process.env.OAUTH_CLIENT_ID,
+                client_id: process.env.NEXT_PUBLIC_OAUTH_CLIENT_ID,
                 client_secret: process.env.OAUTH_CLIENT_SECRET,
                 grant_type: "refresh_token",
                 refresh_token: token.refreshToken
