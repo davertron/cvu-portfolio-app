@@ -12,7 +12,9 @@ declare global {
 
     interface EventTarget {
         value: any
+        getAttribute: (key: string) => any
         name: string
+        id: string
         type: string
     }
 }

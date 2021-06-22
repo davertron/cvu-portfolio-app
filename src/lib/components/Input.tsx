@@ -10,6 +10,8 @@ export type StateSetter = (cb: Function | Object) => any;
 interface InputProps extends Props, Parent {
     type: string
     name?: string
+    listClassname?: string
+    options?: string[]
     value?: any
     onBlur?: FormEventHandler
     onFocus?: FormEventHandler
@@ -27,6 +29,22 @@ function defaultHandler(setForm: StateSetter) : FormEventHandler {
     return (e: FormEvent<Element>) => {
         let val = e.target.value;
         let name = e.target.name;
+        name = name.split('_')[0];
+
+        setForm(prevForm => {
+            if(e.target.type == 'checkbox') val = !prevForm[name];
+
+            return {
+                ...prevForm,
+                [name]: val
+            }
+        });
+    }
+}
+
+function staticHandler(setForm: StateSetter, name: string) {
+    return (e: FormEvent<Element>) => {
+        let val = e.target.getAttribute('value');
         name = name.split('_')[0];
 
         setForm(prevForm => {
@@ -103,7 +121,7 @@ export default function Input(props: InputProps){
                 />
             </Switch>
         );
-    }if(props.type == 'file'){
+    }else if(props.type == 'file'){
         const handleFiles = fileHandler(props.setFiles);
 
         return (
@@ -125,6 +143,59 @@ export default function Input(props: InputProps){
                 {props.children}
             </Files>
         );
+    }else if(props.type == 'datalist'){
+        const [focused, setFocused] = useState(false);
+        const [listClicked, setListClicked] = useState(false);
+        const handleOption = staticHandler(props.setForm, props.name);
+        const dataListBaseClasses = classNames(
+            !props.customRounding && 'rounded',
+            !props.customBg && 'bg-gray-20'
+        );
+        const options = props.options.filter(option => option.toLowerCase().includes(props.value.toLowerCase()));
+        const listId = props.name + '-options'
+
+        return (
+            <div className="relative" onBlur={e => {
+                let focus = false;
+
+                if(e.relatedTarget){
+                    focus = e.relatedTarget.id == listId;
+                }
+
+                setFocused(focus);
+            }}>
+                <div>
+                    <Input
+                        {...props}
+                        type="text"
+                        value={props.value}
+                        className={classNames(props.className, 'w-full')}
+                        onFocus={() => setFocused(true)}
+                    />
+                </div>
+                <ul
+                    className={classNames(
+                        'py-1 my-1 absolute z-10 w-full transition-all',
+                        focused && options.length > 0 ? 'z-10' : 'opacity-0 -z-10',
+                        dataListBaseClasses,
+                        props.listClassname
+                    )}
+                    id={listId}
+                    tabIndex={0}
+                 >
+                    {options.map((option, i) => (
+                      <li
+                        key={listId + '-' + i}
+                        className="bg-white bg-opacity-0 hover:bg-opacity-30 py-1 px-3 transition-all cursor-pointer"
+                        onClick={handleOption}
+                        value={option}
+                      >
+                        {option}
+                      </li>
+                    ))}
+                </ul>
+            </div>
+        )
     }else{
         return (
             <input

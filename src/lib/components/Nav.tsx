@@ -84,7 +84,7 @@ export default function Nav(){
 
                     <Disclosure.Panel className="sm:hidden">
                         <div className="px-2 pt-2 pb-3 space-y-1">
-                            {nav.map((item) => (
+                            {nav.map(item => (
                                 <DropdownLink
                                     key={item.children as string}
                                     {...item}

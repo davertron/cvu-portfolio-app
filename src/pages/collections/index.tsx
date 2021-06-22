@@ -3,6 +3,7 @@ import Layout from '../../lib/components/Layout';
 import Error from '../../lib/components/Error';
 import Button, { Cta } from '../../lib/components/Button';
 import db, { FileCollection } from '../../lib/db';
+import { merge } from '../../lib/util';
 import { useSession } from 'next-auth/client';
 import { useState, useEffect } from 'react';
 import { MdOpenInNew, MdAdd, MdClose } from 'react-icons/md';
@@ -13,6 +14,7 @@ export default function Collection(){
 
     const [collections, setCollections] = useState([] as FileCollection[]);
     const [artifacts, setArtifacts] = useState({} as Map<string, number>)
+    const [posts, setPosts] = useState({} as Map<string, number>);
     const [error, setError] = useState(null);
 
     const [dbLoaded, setDbLoaded] = useState(false);
@@ -24,14 +26,20 @@ export default function Collection(){
             const snapshot = await db.file_collections.where('author_id', '==', session.user.id).get();
             const dbCollections = snapshot.docs.map(doc => doc.data());
             const dbArtifacts: Map<string, number> = new Map();
+            const dbPosts: Map<string, number> = new Map();
 
             for(let i = 0; i < dbCollections.length; i++){
                 const collection = dbCollections[i];
-                const snapshot = await db.artifacts(collection.id).get();
-                dbArtifacts[collection.id] = snapshot.docs.length;
+
+                const artifactsSnapshot = await db.artifacts(collection.id).get();
+                dbArtifacts[collection.id] = artifactsSnapshot.docs.length;
+
+                const postsSnapshot = await db.posts.where('tags', 'array-contains', collection.id).get();
+                dbPosts[collection.id] = postsSnapshot.docs.length;
             }
 
-            setCollections(dbCollections);
+            setCollections(currentCollections => merge<FileCollection>(currentCollections, dbCollections, 'drive_id'));
+            setPosts(dbPosts);
             setArtifacts(dbArtifacts);
 
             setDbLoaded(true);
@@ -109,29 +117,34 @@ export default function Collection(){
                 {collections.length > 0 ?
                     <>
                         {collections.map(collection => (
-                            <div key={collection.id} className="m-4 bg-purple-100 shadow rounded w-56">
-                                <div className="text-gray-600 px-4 pt-1 pb-2">
-                                    <div className="flex">
-                                        <p className="text-lg font-bold my-2 h-full flex-grow">
-                                            {collection.title}
+                            <div key={collection.id}>
+                                <div className="m-4 bg-purple-100 shadow rounded w-56">
+                                    <div className="text-gray-600 px-4 pt-1 pb-2">
+                                        <div className="flex">
+                                            <p className="text-lg font-bold my-2 h-full flex-grow">
+                                                {collection.title}
+                                            </p>
+                                            {posts[collection.id] == 0 && <Button
+                                                customPadding
+                                                onClick={() => remove(window.gapi.client, collection)}
+                                            >
+                                                <MdClose/>
+                                            </Button>}
+                                        </div>
+                                        <p className="my-2 text-gray-600">
+                                            {artifacts[collection.id] || 0} artifact{artifacts[collection.id] != 1 && 's'}
+                                             <> | {posts[collection.id]} post{posts[collection.id] != 1 && 's'}</>
                                         </p>
-                                        <Button
-                                            customPadding
-                                            onClick={() => remove(window.gapi.client, collection)}
-                                        >
-                                            <MdClose/>
-                                        </Button>
                                     </div>
-                                    <p className="my-2">{artifacts[collection.id]} artifact{artifacts[collection.id] > 1 && 's'}</p>
+                                    <Button
+                                        icon={<MdOpenInNew/>}
+                                        className="bg-purple-300 rounded-b w-full hover:text-white hover:bg-purple-500"
+                                        href={'/collections/' + collection.id}
+                                        customRounding
+                                    >
+                                        View
+                                    </Button>
                                 </div>
-                                <Button
-                                    icon={<MdOpenInNew/>}
-                                    className="bg-purple-300 rounded-b w-full hover:text-white hover:bg-purple-500"
-                                    href={'/collections/' + collection.id}
-                                    customRounding
-                                >
-                                    View
-                                </Button>
                             </div>
                         ))}
                         <Cta

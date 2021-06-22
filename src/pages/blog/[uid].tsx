@@ -210,7 +210,7 @@ export default function Blog(props: BlogProps){
                     <Input
                         type="text"
                         id="search-input"
-                        className="bg-gray-100 bg-opacity-10 placeholder-gray-300 h-11 px-3 focus:bg-opacity-20"
+                        className="bg-gray-100 bg-opacity-10 placeholder-gray-200 h-11 px-3 focus:bg-opacity-20"
                         name="term"
                         setForm={setSearch}
                         value={search.term}
