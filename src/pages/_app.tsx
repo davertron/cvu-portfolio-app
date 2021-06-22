@@ -14,6 +14,7 @@ declare global {
         value: any
         getAttribute: (key: string) => any
         name: string
+        id: string
         type: string
     }
 }

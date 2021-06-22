@@ -86,22 +86,22 @@ export default function Profile(){
             {error && <Error error={error}/>}
             {user && session &&
                 <div className="flex flex-wrap justify-center w-screen rounded py-3 px-5 text-gray-600">
-                    <div className="m-6 flex-column w-64">
+                    <div className="m-6 flex-column w-80">
                         {editing ?
                             <Input
                                 type="file"
                                 setFiles={setFiles}
                             >
                                 <div className="relative">
-                                    <img src={files.length > 0 ? files[0].preview.url : user.bio_pic} alt="profile" className="w-56 rounded mb-6 shadow-lg"/>
-                                    <div className="absolute top-0 w-56 h-full bg-gray-600 opacity-50 rounded text-center"></div>
-                                    <div className="absolute top-0 w-56 h-full rounded flex flex-column items-center justify-center">
+                                    <img src={files.length > 0 ? files[0].preview.url : user.bio_pic} alt="profile" className="w-64 rounded mb-6 shadow-lg"/>
+                                    <div className="absolute top-0 w-64 h-full bg-gray-600 opacity-50 rounded text-center"></div>
+                                    <div className="absolute top-0 w-64 h-full rounded flex flex-column items-center justify-center">
                                         <MdEdit className="text-white" size="1.5em"/>
                                     </div>
                                 </div>
                             </Input>
                             :
-                            <img src={user.bio_pic} alt="profile" className="w-56 rounded mb-6 shadow-lg"/>
+                            <img src={user.bio_pic} alt="profile" className="w-64 rounded mb-6 shadow-lg"/>
                         }
                         {files.length > 0 && editing &&
                             <div>
@@ -119,7 +119,7 @@ export default function Profile(){
                         <div>
                             <h3 className="font-bold text-gray-700 text-lg my-2">Collections</h3>
                             <hr className="block"/>
-                            <p className="my-1 flex flex-wrap">
+                            <div className="my-1 flex flex-wrap">
                                 {collections.length > 0 ?
                                     collections.map(collection => (
                                         <Tag href={'/collections/' + collection.id} className="mr-4 my-2">
@@ -129,7 +129,7 @@ export default function Profile(){
                                     :
                                     <span>No collections yet. {session.user.id == id && <Link href="/collections/new"><a className="text-blue-500 hover:underline">Add one</a></Link>}</span>
                                 }
-                            </p>
+                            </div>
                         </div>
                     </div>
                     <div className="m-6 w-72">

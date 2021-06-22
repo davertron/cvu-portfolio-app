@@ -172,55 +172,60 @@ export default function Collection(props: CollectionProps){
             {session &&
                 <>
                     <div className="flex flex-col items-center bg-gradient-to-r from-indigo-300 to-purple-700 w-full text-white h-52 justify-center">
-                        <div className="my-2">
-                            {showInputs ?
-                                <Input
-                                    type="datalist"
-                                    placeholder="Collection Title"
-                                    className="bg-gray-100 bg-opacity-0 focus:bg-opacity-10 placeholder-gray-300"
-                                    listClassname="bg-gray-100 bg-opacity-20 text-gray-100 backdrop-blur"
-                                    setForm={setCollection}
-                                    value={collection.title}
-                                    name="title"
-                                    options={['Informed & Integrative Thinking', 'Clear & Effective Communication']}
-                                    customBg
-                                />
+                        <div className="my-2 w-full">
+                            {(showInputs && !saveDisabled) ?
+                                <div className="mx-auto w-427px">
+                                    <Input
+                                        type="datalist"
+                                        placeholder="Collection Title"
+                                        className="bg-gray-300 bg-opacity-10 placeholder-gray-100 text-white focus:shadow-xl text-2xl font-bold"
+                                        listClassname="bg-purple-400 bg-opacity-40 text-white backdrop-blur shadow-lg"
+                                        setForm={setCollection}
+                                        value={collection.title || ''}
+                                        name="title"
+                                        options={[
+                                            'Creative and Practical Problem Solving',
+                                            'Clear and Effective Communication',
+                                            'Informed and Integrative Thinking',
+                                            'Self Direction'
+                                        ]}
+                                        customBg
+                                    />
+                                </div>
                                 :
                                 <h1 className="font-bold text-2xl text-center my-2">{collection.title}</h1>
                             }
                         </div>
                         <div className="my-4">
-                            {showInputs ?
-                                <>
-                                    {!saveDisabled && <Picker
-                                        scope={[]}
-                                        onInput={async picked => {
-                                            if(picked.docs){
-                                                let updated = [];
-                                                const drive = await db.drive(window.gapi.client);
+                            {(showInputs && !saveDisabled) ?
+                                <Picker
+                                    scope={[]}
+                                    onInput={async picked => {
+                                        if(picked.docs){
+                                            let updated = [];
+                                            const drive = await db.drive(window.gapi.client);
 
-                                                for(let i = 0; i < picked.docs.length; i++){
-                                                    const doc = picked.docs[i];
+                                            for(let i = 0; i < picked.docs.length; i++){
+                                                const doc = picked.docs[i];
 
-                                                    if(artifacts.filter(a => a.drive_id == doc.id).length == 0){ // Make sure document is not a duplicate
-                                                        let artifact: Artifact = {drive_id: doc.id};
-                                                        artifact = await drive.artifacts.load(artifact);
+                                                if(artifacts.filter(a => a.drive_id == doc.id).length == 0){ // Make sure document is not a duplicate
+                                                    let artifact: Artifact = {drive_id: doc.id};
+                                                    artifact = await drive.artifacts.load(artifact);
 
-                                                        updated.push({...artifact, id: dbid()});
-                                                    }
+                                                    updated.push({...artifact, id: dbid()});
                                                 }
-
-                                                setArtifacts(currentArtifacts => [...currentArtifacts, ...updated]);
                                             }
-                                        }}
-                                        viewId="DOCS"
-                                        multiple
-                                    >
-                                        <Cta invert icon={<MdCloudUpload/>}>
-                                            Add files from Drive
-                                        </Cta>
-                                    </Picker>}
-                                </>
+
+                                            setArtifacts(currentArtifacts => [...currentArtifacts, ...updated]);
+                                        }
+                                    }}
+                                    viewId="DOCS"
+                                    multiple
+                                >
+                                    <Cta invert icon={<MdCloudUpload/>}>
+                                        Add files from Drive
+                                    </Cta>
+                                </Picker>
                                 :
                                 <>
                                     <Cta icon={<MdOpenInNew/>} href={collection.web_view || '#'} target="_blank" className="mx-2" invert>
@@ -245,7 +250,7 @@ export default function Collection(props: CollectionProps){
                                     setArtifact={setArtifact(artifact.id)}
                                     removeArtifact={removeArtifact(artifact.id)}
                                     onClick={() => setEditing(true)}
-                                    editing={showInputs}
+                                    editing={showInputs && !saveDisabled}
                                 />
                             )
                         ))}
@@ -254,27 +259,32 @@ export default function Collection(props: CollectionProps){
                         <div className="w-full py-4 fixed bottom-0 border border-top flex flex-row justify-center z-10 bg-white">
                             {showInputs ?
                                 <>
-                                    {validate(collection, artifacts) && !saveDisabled ?
-                                        <>
-                                            <Cta
-                                                onClick={() => save(window.gapi.client)}
-                                                className="mx-2"
-                                                icon={<MdDoneAll/>}
-                                            >
-                                                Save
-                                            </Cta>
-
-                                            {!props.creating && <Button
-                                                onClick={() => setEditing(false)}
-                                                icon={<MdClose/>}
-                                                className="border border-indigo-500 text-indigo-500 hover:text-white hover:bg-indigo-500 mx-2"
-                                            >
-                                                Cancel
-                                            </Button>}
-                                        </>
-                                        :
-                                        <Cta className="bg-gray-200 text-gray-400 cursor-default" customBg customFont icon={<MdDoneAll/>}>Save</Cta>
-                                    }
+                                    {validate(collection, artifacts) && <Cta
+                                        onClick={() => save(window.gapi.client)}
+                                        className="mx-2"
+                                        icon={<MdDoneAll/>}
+                                    >
+                                        Save
+                                    </Cta>}
+                                    {saveDisabled || !validate(collection, artifacts) && <Cta
+                                        className="bg-gray-200 text-gray-400 cursor-default"
+                                        customBg
+                                        customFont
+                                        icon={<MdDoneAll/>}
+                                    >
+                                        Save
+                                    </Cta>}
+                                    {(!props.creating && !saveDisabled) && <Button
+                                        onClick={() => {
+                                            setEditing(false);
+                                            setDbLoaded(false);
+                                            setDriveLoaded(false);
+                                        }}
+                                        icon={<MdClose/>}
+                                        className="border border-indigo-500 text-indigo-500 hover:text-white hover:bg-indigo-500 mx-2"
+                                    >
+                                        Cancel
+                                    </Button>}
                                 </>
                                 :
                                 <Button

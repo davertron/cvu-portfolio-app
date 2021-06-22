@@ -117,32 +117,34 @@ export default function Collection(){
                 {collections.length > 0 ?
                     <>
                         {collections.map(collection => (
-                            <div key={collection.id} className="m-4 bg-purple-100 shadow rounded w-56">
-                                <div className="text-gray-600 px-4 pt-1 pb-2">
-                                    <div className="flex">
-                                        <p className="text-lg font-bold my-2 h-full flex-grow">
-                                            {collection.title}
+                            <div key={collection.id}>
+                                <div className="m-4 bg-purple-100 shadow rounded w-56">
+                                    <div className="text-gray-600 px-4 pt-1 pb-2">
+                                        <div className="flex">
+                                            <p className="text-lg font-bold my-2 h-full flex-grow">
+                                                {collection.title}
+                                            </p>
+                                            {posts[collection.id] == 0 && <Button
+                                                customPadding
+                                                onClick={() => remove(window.gapi.client, collection)}
+                                            >
+                                                <MdClose/>
+                                            </Button>}
+                                        </div>
+                                        <p className="my-2 text-gray-600">
+                                            {artifacts[collection.id] || 0} artifact{artifacts[collection.id] != 1 && 's'}
+                                             <> | {posts[collection.id]} post{posts[collection.id] != 1 && 's'}</>
                                         </p>
-                                        <Button
-                                            customPadding
-                                            onClick={() => remove(window.gapi.client, collection)}
-                                        >
-                                            <MdClose/>
-                                        </Button>
                                     </div>
-                                    <p className="my-2">
-                                        {artifacts[collection.id] || 0} artifact{artifacts[collection.id] != 1 && 's'}
-                                        {posts[collection.id] > 0 && <> | {posts[collection.id]} post{posts[collection.id] != 1 && 's'}</>}
-                                    </p>
+                                    <Button
+                                        icon={<MdOpenInNew/>}
+                                        className="bg-purple-300 rounded-b w-full hover:text-white hover:bg-purple-500"
+                                        href={'/collections/' + collection.id}
+                                        customRounding
+                                    >
+                                        View
+                                    </Button>
                                 </div>
-                                <Button
-                                    icon={<MdOpenInNew/>}
-                                    className="bg-purple-300 rounded-b w-full hover:text-white hover:bg-purple-500"
-                                    href={'/collections/' + collection.id}
-                                    customRounding
-                                >
-                                    View
-                                </Button>
                             </div>
                         ))}
                         <Cta

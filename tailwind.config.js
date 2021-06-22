@@ -6,10 +6,18 @@ module.exports = {
             'sans': ['Helvetica', 'sans-serif']
         },
         extend: {
+            zIndex: {
+                '-10': '-10'
+            },
             transitionProperty: {
                 'height': 'height'
+            },
+            colors: {
+                indigo: {
+                    light: '#888ece'
+                }
             }
-        },
+        }
     },
     variants: {
         backgroundColor: ['responsive', 'hover', 'focus', 'group-hover', 'group-focus', 'active'],

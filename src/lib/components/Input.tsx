@@ -145,15 +145,25 @@ export default function Input(props: InputProps){
         );
     }else if(props.type == 'datalist'){
         const [focused, setFocused] = useState(false);
+        const [listClicked, setListClicked] = useState(false);
         const handleOption = staticHandler(props.setForm, props.name);
         const dataListBaseClasses = classNames(
             !props.customRounding && 'rounded',
-            !props.customBg && 'bg-gray-50'
+            !props.customBg && 'bg-gray-20'
         );
         const options = props.options.filter(option => option.toLowerCase().includes(props.value.toLowerCase()));
+        const listId = props.name + '-options'
 
         return (
-            <div onBlur={() => setFocused(false)}>
+            <div className="relative" onBlur={e => {
+                let focus = false;
+
+                if(e.relatedTarget){
+                    focus = e.relatedTarget.id == listId;
+                }
+
+                setFocused(focus);
+            }}>
                 <div>
                     <Input
                         {...props}
@@ -163,10 +173,19 @@ export default function Input(props: InputProps){
                         onFocus={() => setFocused(true)}
                     />
                 </div>
-                {options.length > 0 && <ul className={classNames('py-1 my-1 z-10 absolute', dataListBaseClasses, props.listClassname)}>
+                <ul
+                    className={classNames(
+                        'py-1 my-1 absolute z-10 w-full transition-all',
+                        focused && options.length > 0 ? 'z-10' : 'opacity-0 -z-10',
+                        dataListBaseClasses,
+                        props.listClassname
+                    )}
+                    id={listId}
+                    tabIndex={0}
+                 >
                     {options.map((option, i) => (
                       <li
-                        key={props.name + '-option-' + i}
+                        key={listId + '-' + i}
                         className="bg-white bg-opacity-0 hover:bg-opacity-30 py-1 px-3 transition-all cursor-pointer"
                         onClick={handleOption}
                         value={option}
@@ -174,7 +193,7 @@ export default function Input(props: InputProps){
                         {option}
                       </li>
                     ))}
-                </ul>}
+                </ul>
             </div>
         )
     }else{
