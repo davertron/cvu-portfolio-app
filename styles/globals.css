@@ -9,3 +9,7 @@ html, body {
 .flex-grow {
     flex-grow: 1;
 }
+
+.backdrop-blur {
+    backdrop-filter: blur(10px);
+}

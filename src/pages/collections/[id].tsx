@@ -175,12 +175,14 @@ export default function Collection(props: CollectionProps){
                         <div className="my-2">
                             {showInputs ?
                                 <Input
-                                    type="text"
+                                    type="datalist"
                                     placeholder="Collection Title"
-                                    className="font-bold text-2xl text-center bg-gray-100 bg-opacity-0 focus:bg-opacity-10 placeholder-gray-300"
+                                    className="bg-gray-100 bg-opacity-0 focus:bg-opacity-10 placeholder-gray-300"
+                                    listClassname="bg-gray-100 bg-opacity-20 text-gray-100 backdrop-blur"
                                     setForm={setCollection}
                                     value={collection.title}
                                     name="title"
+                                    options={['Informed & Integrative Thinking', 'Clear & Effective Communication']}
                                     customBg
                                 />
                                 :
@@ -238,6 +240,7 @@ export default function Collection(props: CollectionProps){
                         {artifacts.map((artifact, i) => (
                             !artifact.awaiting_delete && (
                                 <CollectionArtifact
+                                    key={artifact.id}
                                     artifact={artifact}
                                     setArtifact={setArtifact(artifact.id)}
                                     removeArtifact={removeArtifact(artifact.id)}

@@ -3,6 +3,7 @@ import Layout from '../../lib/components/Layout';
 import Error from '../../lib/components/Error';
 import Button, { Cta } from '../../lib/components/Button';
 import db, { FileCollection } from '../../lib/db';
+import { merge } from '../../lib/util';
 import { useSession } from 'next-auth/client';
 import { useState, useEffect } from 'react';
 import { MdOpenInNew, MdAdd, MdClose } from 'react-icons/md';
@@ -13,6 +14,7 @@ export default function Collection(){
 
     const [collections, setCollections] = useState([] as FileCollection[]);
     const [artifacts, setArtifacts] = useState({} as Map<string, number>)
+    const [posts, setPosts] = useState({} as Map<string, number>);
     const [error, setError] = useState(null);
 
     const [dbLoaded, setDbLoaded] = useState(false);
@@ -24,14 +26,20 @@ export default function Collection(){
             const snapshot = await db.file_collections.where('author_id', '==', session.user.id).get();
             const dbCollections = snapshot.docs.map(doc => doc.data());
             const dbArtifacts: Map<string, number> = new Map();
+            const dbPosts: Map<string, number> = new Map();
 
             for(let i = 0; i < dbCollections.length; i++){
                 const collection = dbCollections[i];
-                const snapshot = await db.artifacts(collection.id).get();
-                dbArtifacts[collection.id] = snapshot.docs.length;
+
+                const artifactsSnapshot = await db.artifacts(collection.id).get();
+                dbArtifacts[collection.id] = artifactsSnapshot.docs.length;
+
+                const postsSnapshot = await db.posts.where('tags', 'array-contains', collection.id).get();
+                dbPosts[collection.id] = postsSnapshot.docs.length;
             }
 
-            setCollections(dbCollections);
+            setCollections(currentCollections => merge<FileCollection>(currentCollections, dbCollections, 'drive_id'));
+            setPosts(dbPosts);
             setArtifacts(dbArtifacts);
 
             setDbLoaded(true);
@@ -122,7 +130,10 @@ export default function Collection(){
                                             <MdClose/>
                                         </Button>
                                     </div>
-                                    <p className="my-2">{artifacts[collection.id]} artifact{artifacts[collection.id] > 1 && 's'}</p>
+                                    <p className="my-2">
+                                        {artifacts[collection.id] || 0} artifact{artifacts[collection.id] != 1 && 's'}
+                                        {posts[collection.id] > 0 && <> | {posts[collection.id]} post{posts[collection.id] != 1 && 's'}</>}
+                                    </p>
                                 </div>
                                 <Button
                                     icon={<MdOpenInNew/>}

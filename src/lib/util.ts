@@ -11,7 +11,7 @@ Array.prototype.separate = function(predicate){
     let filtered = [];
     let removed = [];
 
-    for(let elem in this){
+    for(let elem of this){
         if(predicate(elem)){
             filtered.push(elem);
         }else{
