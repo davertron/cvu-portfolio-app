@@ -17,6 +17,7 @@ export interface User extends Model {
     name?: string
     bio_pic?: string
     bio?: string
+    shared_with?: string[]
 }
 
 export interface FileCollection extends Model {

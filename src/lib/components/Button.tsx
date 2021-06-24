@@ -12,6 +12,7 @@ export interface StaticButtonProps extends Props, Parent {
     icon?: Child
     href?: string
     target?: string
+    center?: boolean
     customRounding?: boolean
     customPadding?: boolean
 }
@@ -27,7 +28,10 @@ interface CtaProps extends ButtonProps {
 
 export default function Button(props: ButtonProps){
     const content = props.icon ?
-        <div className="flex items-center">
+        <div className={classNames(
+            'flex items-center',
+            props.center && 'justify-center'
+        )}>
             <div className="mr-2">{props.icon}</div>
             <div>{props.children}</div>
         </div>

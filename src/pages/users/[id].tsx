@@ -2,13 +2,15 @@ import Layout from '../../lib/components/Layout';
 import Error from '../../lib/components/Error';
 import Input from '../../lib/components/Input';
 import Tag from '../../lib/components/Tag';
+import Button, { Cta } from '../../lib/components/Button';
 import { Authorization } from '../../lib/authorization';
 import db, { FileCollection } from '../../lib/db';
-import { MdEdit, MdClose, MdCheck } from 'react-icons/md';
+import { MdEdit, MdClose, MdCheck, MdPersonAdd, MdAdd } from 'react-icons/md';
 import { useSession } from 'next-auth/client';
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { classNames } from 'src/lib/util';
 
 export default function Profile(){
     const [session, loading] = useSession();
@@ -16,15 +18,29 @@ export default function Profile(){
     const [user, setUser] = useState(null);
     const [collections, setCollections] = useState([] as FileCollection[]);
     const [error, setError] = useState(null);
-    const [editing, setEditing] = useState(false);
+
+    const [shareWith, setShareWith] = useState({query: '', showInput: false});
     const [files, setFiles] = useState([]);
 
+    const [editing, setEditing] = useState(false);
     const [dbLoaded, setDbLoaded] = useState(false);
     const [driveLoaded, setDriveLoaded] = useState(false);
     const [apisLoaded, setApisLoaded] = useState(false);
 
     const router = useRouter();
     const { id } = router.query;
+
+    const validate = (query: string) => {
+        const parts = query.split('@');
+
+        if(parts.length == 2){
+            const [address, domain] = parts;
+
+            return domain == 'cvsdvt.org';
+        }
+
+        return false;
+    }
 
     async function getData(uid: string, userOnly?: boolean){
         if(uid){
@@ -85,23 +101,25 @@ export default function Profile(){
         >
             {error && <Error error={error}/>}
             {user && session &&
-                <div className="flex flex-wrap justify-center w-screen rounded py-3 px-5 text-gray-600">
-                    <div className="m-6 flex-column w-80">
+                <div className="flex flex-wrap-reverse justify-center w-screen rounded py-3 px-5 text-gray-600">
+                    <div className="m-6 flex-column w-72">
                         {editing ?
-                            <Input
-                                type="file"
-                                setFiles={setFiles}
-                            >
-                                <div className="relative">
-                                    <img src={files.length > 0 ? files[0].preview.url : user.bio_pic} alt="profile" className="w-64 rounded mb-6 shadow-lg"/>
-                                    <div className="absolute top-0 w-64 h-full bg-gray-600 opacity-50 rounded text-center"></div>
-                                    <div className="absolute top-0 w-64 h-full rounded flex flex-column items-center justify-center">
-                                        <MdEdit className="text-white" size="1.5em"/>
+                            <>
+                                <Input
+                                    type="file"
+                                    setFiles={setFiles}
+                                >
+                                    <div className="relative">
+                                        <img src={files.length > 0 ? files[0].preview.url : user.bio_pic} alt="profile" className="w-72 rounded mb-6 shadow-lg"/>
+                                        <div className="absolute top-0 w-72 h-full bg-gray-600 opacity-50 rounded text-center"></div>
+                                        <div className="absolute top-0 w-72 h-full rounded flex flex-column items-center justify-center">
+                                            <MdEdit className="text-white" size="1.5em"/>
+                                        </div>
                                     </div>
-                                </div>
-                            </Input>
+                                </Input>
+                            </>
                             :
-                            <img src={user.bio_pic} alt="profile" className="w-64 rounded mb-6 shadow-lg"/>
+                            <img src={user.bio_pic} alt="profile" className="w-72 rounded mb-6 shadow-lg"/>
                         }
                         {files.length > 0 && editing &&
                             <div>
@@ -117,17 +135,71 @@ export default function Profile(){
                             </div>
                         }
                         <div>
-                            <h3 className="font-bold text-gray-700 text-lg my-2">Collections</h3>
+                            <h3 className="font-bold text-gray-600 text-lg my-2">Collections</h3>
                             <hr className="block"/>
-                            <div className="my-1 flex flex-wrap">
+                            <div className="my-2 flex flex-wrap">
                                 {collections.length > 0 ?
                                     collections.map(collection => (
-                                        <Tag href={'/collections/' + collection.id} className="mr-4 my-2">
+                                        <Tag href={'/collections/' + collection.id} key={collection.id} className="mr-4 my-2">
                                             {collection.title}
                                         </Tag>
                                     ))
                                     :
                                     <span>No collections yet. {session.user.id == id && <Link href="/collections/new"><a className="text-blue-500 hover:underline">Add one</a></Link>}</span>
+                                }
+                            </div>
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-gray-600 text-lg mb-2 mt-4">Sharing</h3>
+                            <hr/>
+                            <div className="my-4">
+                                {editing ?
+                                    <>
+                                        <div className="flex w-full rounded bg-gray-100">
+                                            <Input
+                                                type="text"
+                                                placeholder="Enter email"
+                                                className="flex-grow bg-transparent"
+                                                value={shareWith.query}
+                                                onInput={e => {
+                                                    const val = e.target.value;
+
+                                                    setShareWith(currentShareWith => ({
+                                                        ...currentShareWith,
+                                                        query: val
+                                                    }));
+                                                }}
+                                                customBg
+                                            />
+                                            <Button
+                                                className={classNames(
+                                                    'px-3 text-indigo-500',
+                                                    validate(shareWith.query) ? 'opacity-100' : 'opacity-0'
+                                                )}
+                                                onClick={() => {
+                                                    if(validate(shareWith.query)){
+                                                        setShareWith(currentShareWith => ({
+                                                            ...currentShareWith,
+                                                            query: '',
+                                                            showInput: false
+                                                        }));
+                                                    }
+                                                }}
+                                                customPadding
+                                            >
+                                                <MdAdd size="1.2em"/>
+                                            </Button>
+                                        </div>
+                                    </>
+                                    :
+                                    <Cta
+                                        icon={<MdPersonAdd/>}
+                                        onClick={() => setEditing(true)}
+                                        className="w-full"
+                                        gradient
+                                    >
+                                        Share your portfolio
+                                    </Cta>
                                 }
                             </div>
                         </div>

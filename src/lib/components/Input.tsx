@@ -80,7 +80,7 @@ export default function Input(props: InputProps){
         !props.noPadding && 'px-3 py-2',
         !props.customRounding && 'rounded'
     );
-    const handler = props.onInput || props.setForm ? defaultHandler(props.setForm) : () => {};
+    const handler = props.onInput || (props.setForm ? defaultHandler(props.setForm) : () => {});
     const [error, setError] = useState(null);
 
     if(props.type == 'textarea'){
