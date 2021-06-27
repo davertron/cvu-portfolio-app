@@ -12,12 +12,26 @@ export interface Model {
     id?: string
 }
 
+export enum UserRole {
+    ADVISOR = 'ADVISOR',
+    STUDENT = 'STUDENT',
+    ADMIN = 'ADMIN'
+}
+
+export interface Permission {
+    email: string
+    drive_permissions: Map<string, string>
+    awaiting_delete?: boolean
+}
+
 export interface User extends Model {
     email?: string
     name?: string
     bio_pic?: string
     bio?: string
-    shared_with?: string[]
+    role?: UserRole
+    shared_with?: Permission[]
+    shared_with_email?: string[]
 }
 
 export interface FileCollection extends Model {
@@ -50,7 +64,9 @@ export interface Post extends Model {
 }
 
 export interface Comment extends Model {
-    body: string
+    body?: string
+    author_id?: string
+    awaiting_save?: boolean
 }
 
 const app = firebase.apps.length? firebase.apps[0] : firebase.initializeApp({
@@ -62,10 +78,25 @@ const app = firebase.apps.length? firebase.apps[0] : firebase.initializeApp({
     appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 });
 
+type ConverterPlugin<T extends Model> = (obj: T) => T;
+type ConverterPlugins<T extends Model> = {toFirestorePlugin: ConverterPlugin<T>, fromFirestorePlugin?: ConverterPlugin<T>};
+
 class Converter<T extends Model> {
-    toFirestore = (data: T) => data;
+
+    toFirestorePlugin: ConverterPlugin<T>
+    fromFirestorePlugin: ConverterPlugin<T>
+
+    constructor(plugins?: ConverterPlugins<T>){
+        if(plugins) Object.assign(this, plugins);
+    }
+
+    toFirestore = (data: T) => {
+        return this.toFirestorePlugin ? this.toFirestorePlugin(data) : data
+    }
+
     fromFirestore = (snapshot: firebase.firestore.QueryDocumentSnapshot) => {
-        return {...snapshot.data(), id: snapshot.id} as T
+        const data = {...snapshot.data(), id: snapshot.id} as T;
+        return this.fromFirestorePlugin ? this.fromFirestorePlugin(data) : data;
     }
 }
 
@@ -76,8 +107,8 @@ class CollectionFactory {
         this.store = store;
     }
 
-    new<Schema>(name: string){
-        const converter = new Converter<Schema>();
+    new<Schema extends Model>(name: string, plugins?: ConverterPlugins<Schema>){
+        const converter = new Converter<Schema>(plugins);
         return this.store.collection(name).withConverter(converter);
     }
 }
@@ -86,10 +117,55 @@ const store = app.firestore();
 const bucket = app.storage().ref();
 const cf = new CollectionFactory(store);
 
+type CollectionReference = firebase.firestore.CollectionReference;
+type CollectionChild = (parentId: string) => CollectionReference;
+type DriveReference = (client: any) => Promise<DriveDB>;
+type BucketReference = (filename: string) => firebase.storage.Reference;
+
+interface Db {
+    users: CollectionReference,
+    file_collections: CollectionReference,
+    posts: CollectionReference,
+    comments: CollectionChild
+    artifacts: CollectionChild,
+
+    storage: BucketReference,
+    avatars: BucketReference,
+
+    drive: DriveReference
+}
+
+let db: Db = {
+    // Firestore collections
+    users: cf.new<User>('users', {
+        // Auto-generate index array for easier queries
+        toFirestorePlugin: user => ({
+            ...user,
+            shared_with_email: user.shared_with ?
+                user.shared_with.map(p => p.email)
+                :
+                []
+        })
+    }),
+    file_collections: cf.new<FileCollection>('file_collections'),
+    posts: cf.new<Post>('posts'),
+    comments: (postId: string) => cf.new<Comment>('posts/' + postId + '/comments'),
+    artifacts: (collectionId: string) => cf.new<Artifact>('file_collections/' + collectionId + '/artifacts'),
+
+    // File storage bucket
+    storage: (filename: string) => bucket.child(filename),
+    avatars: (filename: string) => bucket.child('avatars/' + filename),
+
+    drive: null
+};
+
 interface DriveHandler<T> {
     load?: (obj: T, ...args: string[]) => Promise<T>;
     save?: (obj: T, ...args: string[]) => Promise<T>;
     remove?: (obj: T, ...args: string[]) => Promise<void>;
+    share?: (obj: T, permission: Permission, ...args: string[]) => Promise<Permission>;
+    unshare?: (obj: T, permission: Permission, ...args: string[]) => Promise<Permission>;
+    set_access?: (obj: T, permission: Permission, ...args: string[]) => Promise<Permission> | Promise<null>;
 }
 
 // Handles drive-based schema attributes
@@ -112,9 +188,25 @@ class DriveDB {
         }
     }
 
+    private async newPermissionId(fileId: string, emailAddress: string) : Promise<string> {
+        const snapshot = await this.client.drive.permissions.create({
+            type: 'user',
+            role: 'reader',
+            fields: 'id',
+            emailAddress,
+            fileId
+        });
+
+        return snapshot.result.id;
+    }
+
+    private async deletePermission(fileId: string, permissionId: string){
+        await this.client.drive.permissions.delete({fileId, permissionId});
+    }
+
     artifacts: DriveHandler<Artifact> = {
 
-        load: async (artifact: Artifact) : Promise<Artifact> => {
+        load: async (artifact: Artifact) => {
             const snapshot = await this.client.drive.files.get({
                 fileId: artifact.drive_id,
                 fields: 'name,iconLink,thumbnailLink,webViewLink,description'
@@ -135,7 +227,7 @@ class DriveDB {
             }
         },
 
-        save: async (artifact: Artifact, collection_drive_id?: string) : Promise<Artifact> => {
+        save: async (artifact: Artifact, collection_drive_id?: string) => {
             if(artifact.awaiting_delete){
                 await this.client.drive.files.delete({fileId: artifact.shortcut_id});
             }else{
@@ -165,15 +257,16 @@ class DriveDB {
             return artifact;
         },
 
-        remove: async (artifact: Artifact) : Promise<void> => {
+        remove: async (artifact: Artifact) => {
             artifact.awaiting_delete = true;
             await this.artifacts.save(artifact);
-        }
+        },
+
     };
 
     file_collections: DriveHandler<[FileCollection, Artifact[]]> = {
 
-        save: async ([collection, artifacts]: [FileCollection, Artifact[]]) : Promise<[FileCollection, Artifact[]]> => {
+        save: async ([collection, artifacts]: [FileCollection, Artifact[]]) => {
             if(!collection.drive_id){
                 const folderSnapshot = await this.client.drive.files.create({
                     resource: {
@@ -200,7 +293,7 @@ class DriveDB {
             return [collection, artifacts];
         },
 
-        load: async ([collection, artifacts]: [FileCollection, Artifact[]]) : Promise<[FileCollection, Artifact[]]> => {
+        load: async ([collection, artifacts]: [FileCollection, Artifact[]]) => {
             const snapshot = await this.client.drive.files.get({
                 fileId: collection.drive_id,
                 fields: 'name,webViewLink'
@@ -217,7 +310,7 @@ class DriveDB {
             return [collection, artifacts];
         },
 
-        remove: async ([collection, artifacts]: [FileCollection, Artifact[]]) : Promise<void> => {
+        remove: async ([collection, artifacts]: [FileCollection, Artifact[]]) => {
             await this.client.drive.files.delete({
                 fileId: collection.drive_id
             });
@@ -225,30 +318,59 @@ class DriveDB {
             await Promise.all(artifacts.map(
                 async artifact => await this.artifacts.remove(artifact)
             ));
-        }
+        },
 
+        share: async ([collection, artifacts]: [FileCollection, Artifact[]], permission: Permission) => {
+            const updated =  permission;
+
+            if(!updated.drive_permissions[collection.drive_id]){
+                updated.drive_permissions[collection.drive_id] = await this.newPermissionId(
+                    collection.drive_id,
+                    updated.email
+                );
+            }
+
+            for(let artifact of artifacts){
+                if(!updated.drive_permissions[artifact.drive_id]){
+                    updated.drive_permissions[artifact.drive_id] = await this.newPermissionId(
+                        artifact.drive_id,
+                        updated.email
+                    );
+                }
+            }
+
+            return updated;
+        },
+
+        unshare: async ([collection, artifacts]: [FileCollection, Artifact[]], permission: Permission) => {
+            if(permission.drive_permissions[collection.drive_id]){
+                await this.deletePermission(collection.drive_id, permission.drive_permissions[collection.drive_id]);
+                delete permission.drive_permissions[collection.drive_id];
+            }
+
+            for(let artifact of artifacts){
+                if(permission.drive_permissions[artifact.drive_id]){
+                    await this.deletePermission(artifact.drive_id, permission.drive_permissions[artifact.drive_id]);
+                    delete permission.drive_permissions[artifact.drive_id];
+                }
+            }
+
+            return permission;
+        },
+
+        set_access: async (state: [FileCollection, Artifact[]], permission: Permission) => {
+            return await this.file_collections[permission.awaiting_delete ? 'unshare' : 'share'](state, permission);
+        }
     };
 
 }
 
-export default {
-    users: cf.new<User>('users'),
-    file_collections: cf.new<FileCollection>('file_collections'),
-    posts: cf.new<Post>('posts'),
-    comments: (postId: string) => cf.new<Comment>('posts/' + postId + '/comments'),
-    artifacts: (collectionId: string) => cf.new<Artifact>('file_collections/' + collectionId + '/artifacts'),
-
-    // Virtual (not directly loaded from db) model fields
-    drive: async client => await DriveDB.init(client),
-
-    // File storage bucket
-    storage: (filename: string) => bucket.child(filename),
-    avatars: (filename: string) => bucket.child('avatars/' + filename)
-};
-
-export type Timestamp = firebase.firestore.Timestamp;
+// Virtual (not directly loaded from db) model fields
+db.drive = async client => await DriveDB.init(client);
 
 // db-specific utils
-
+export type Timestamp = firebase.firestore.Timestamp;
 export const id = () => uuidv4();
 export const now = () => firebase.firestore.Timestamp.now();
+
+export default db;

@@ -4,7 +4,7 @@ import Input, { StateSetter } from '../../lib/components/Input';
 import Button, { Cta } from '../../lib/components/Button';
 import Picker from '../../lib/components/Picker';
 import Error from '../../lib/components/Error';
-import db, { id as dbid, FileCollection, Artifact } from '../../lib/db';
+import db, { id as dbid, FileCollection, Artifact, User } from '../../lib/db';
 import { classNames } from '../../lib/util';
 import { Interactive } from '../../lib/components/types';
 import { useSession } from 'next-auth/client';
@@ -25,6 +25,7 @@ export default function Collection(props: CollectionProps){
         title: ''
     } as FileCollection);
     const [artifacts, setArtifacts] = useState([] as Artifact[]);
+    const [user, setUser] = useState({} as User);
 
     const [editing, setEditing] = useState(false);
     const [saveDisabled, setSaveDisabled] = useState(false);
@@ -38,6 +39,7 @@ export default function Collection(props: CollectionProps){
     const router = useRouter();
     const { id } = router.query;
     const showInputs = props.creating || editing;
+    const owned = session && collection.author_id == session.user.id
 
     const removeArtifact = (aid: string) => {
         return () => {
@@ -53,22 +55,34 @@ export default function Collection(props: CollectionProps){
 
     const validate = (collection: FileCollection, artifacts: Artifact[]) => (collection.title && collection.title.trim() != '');
 
-    async function getData(cid: string){
+    async function getData(cid?: string){
         try {
-            const snapshot = await db.file_collections.doc(cid).get();
-            const dbCollection = snapshot.data();
+            let dbUser = {};
 
-            if(dbCollection){
-                const artifactsSnapshot = await db.artifacts(cid).get();
-                const dbArtifacts = artifactsSnapshot.docs.map(doc => doc.data());
+            if(cid){
+                const snapshot = await db.file_collections.doc(cid).get();
+                const dbCollection = snapshot.data();
 
-                setArtifacts(dbArtifacts);
-                setCollection(dbCollection);
+                if(dbCollection){
+                    const userSnapshot = await db.users.doc(dbCollection.author_id).get();
+                    dbUser = userSnapshot.data();
 
-                setDbLoaded(true);
+                    const artifactsSnapshot = await db.artifacts(cid).get();
+                    const dbArtifacts = artifactsSnapshot.docs.map(doc => doc.data());
+
+                    setArtifacts(dbArtifacts);
+                    setCollection(dbCollection);
+                }else{
+                    setError('Collection `' + id + '` not found');
+                }
             }else{
-                setError('Collection `' + id + '` not found');
+                const userSnapshot = await db.users.doc(session.user.id).get();
+                dbUser = userSnapshot.data();
             }
+
+            setDbLoaded(true);
+            setUser(dbUser);
+
         }catch(_e){
             setError('There was an error loading collection ' + id);
         }
@@ -118,8 +132,21 @@ export default function Collection(props: CollectionProps){
                     })
                 );
 
+                const driveSharedWith = await Promise.all(user.shared_with.map(
+                    async permission => await drive.file_collections.share([driveCollection, driveArtifacts], permission)
+                ));
+
+                db.users.doc(session.user.id).set({
+                    ...user,
+                    shared_with: driveSharedWith
+                });
+                setUser(currentUser => ({...currentUser, shared_with: driveSharedWith}));
+
                 setArtifacts([]);
                 setCollection({title: ''});
+                setSaveDisabled(false);
+                NProgress.done();
+
                 router.push('/collections/' + collectionId);
             }else{
                 db.file_collections.doc(id as string).set({
@@ -142,14 +169,12 @@ export default function Collection(props: CollectionProps){
 
                 setArtifacts(currentArtifacts => currentArtifacts.filter(artifact => !artifact.awaiting_delete));
                 setEditing(false);
+                setSaveDisabled(false);
+                NProgress.done();
             }
         }catch(e){
-            console.log(e)
             setError(`An error ${e.status ? `(${e.status})` : ''} was encountered while saving this collection`);
         }
-
-        setSaveDisabled(false);
-        NProgress.done();
     }
 
     useEffect(() => {
@@ -157,14 +182,19 @@ export default function Collection(props: CollectionProps){
             getData(id as string);
         }
 
-        if(dbLoaded && !driveLoaded && apisLoaded){
+        if(session && !loading && props.creating && !dbLoaded){
+            getData();
+        }
+
+        if(dbLoaded && !props.creating && !driveLoaded && apisLoaded){
             getDriveData(window.gapi.client);
         }
     }, [loading, dbLoaded, driveLoaded, apisLoaded, id]);
 
     return (
         <Layout
-            authorization={Authorization.USER}
+            authorization={Authorization.SHARED}
+            author={user}
             gapis={['picker']}
             onGapisLoad={() => setApisLoaded(true)}
             noPadding
@@ -193,7 +223,10 @@ export default function Collection(props: CollectionProps){
                                     />
                                 </div>
                                 :
-                                <h1 className="font-bold text-2xl text-center my-2">{collection.title}</h1>
+                                <div className="text-center">
+                                    <h1 className="font-bold text-2xl py-2">{collection.title}</h1>
+                                    {(!owned && user.name) && <h2 className="text-gray-100 text-lg py-2">{user.name}</h2>}
+                                </div>
                             }
                         </div>
                         <div className="my-4">
@@ -231,7 +264,7 @@ export default function Collection(props: CollectionProps){
                                     <Cta icon={<MdOpenInNew/>} href={collection.web_view || '#'} target="_blank" className="mx-2" invert>
                                         Open in drive
                                     </Cta>
-                                    <Cta icon={<CgFeed/>} href={'/blog/' + session.user.id + '?tags=' + collection.id} className="mx-2" invert>
+                                    <Cta icon={<CgFeed/>} href={'/blog/' + collection.author_id + '?tags=' + collection.id} className="mx-2" invert>
                                         Tagged posts
                                     </Cta>
                                 </>
@@ -242,20 +275,20 @@ export default function Collection(props: CollectionProps){
                         <Error error={error}/>
                     </div>}
                     <div className="flex flex-wrap justify-center w-full py-3 px-5 text-gray-600 mb-16">
-                        {artifacts.map((artifact, i) => (
+                        {artifacts.map(artifact => (
                             !artifact.awaiting_delete && (
                                 <CollectionArtifact
                                     key={artifact.id}
                                     artifact={artifact}
                                     setArtifact={setArtifact(artifact.id)}
                                     removeArtifact={removeArtifact(artifact.id)}
-                                    onClick={() => setEditing(true)}
+                                    onClick={owned ? () => setEditing(true) : () => {}}
                                     editing={showInputs && !saveDisabled}
                                 />
                             )
                         ))}
                     </div>
-                    {(props.creating || session && collection.author_id == session.user.id) &&
+                    {(props.creating || owned) &&
                         <div className="w-full py-4 fixed bottom-0 border border-top flex flex-row justify-center z-10 bg-white">
                             {showInputs ?
                                 <>

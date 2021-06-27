@@ -5,6 +5,10 @@ declare global {
     interface Array<T> {
         separate(predicate: (elem: T) => boolean): [T[], T[]]
     }
+
+    interface String {
+        toTitleCase(): String
+    }
 }
 
 Array.prototype.separate = function(predicate){
@@ -20,6 +24,10 @@ Array.prototype.separate = function(predicate){
     }
 
     return [filtered, removed];
+}
+
+String.prototype.toTitleCase = function(){
+    if(this.length > 0) return this[0].toUpperCase() + this.substring(1, this.length).toLowerCase();
 }
 
 export function classNames(...classes: string[]){

@@ -5,6 +5,7 @@
 
 import Nav from './Nav';
 import { useAuth, Authorization } from '../authorization';
+import { User } from '../db';
 import { Props, Parent } from './types';
 import { classNames } from '../util';
 import { useEffect } from 'react';
@@ -16,6 +17,7 @@ import Head from 'next/head';
 
 interface LayoutProps extends Props, Parent {
     authorization?: Authorization
+    author?: User
     title?: string
     className?: string
     noPadding?: boolean
@@ -31,9 +33,9 @@ export default function Layout(props: LayoutProps){
     const router = useRouter();
 
     useEffect(() => {
-        const authState = useAuth(props.authorization, session);
+        if(!loading && (props.authorization != Authorization.SHARED || (props.author && props.author.shared_with))){
+            const authState = useAuth(props.authorization, session, props.author);
 
-        if(!loading){
             if(!authState.success){
                 router.push(authState.redirect);
             }
@@ -65,7 +67,7 @@ export default function Layout(props: LayoutProps){
 
         //set progress bar state
         loading ? NProgress.start() : NProgress.done();
-    }, [loading]);
+    }, [loading, props.author]);
 
     if(loading){
         return (<></>);

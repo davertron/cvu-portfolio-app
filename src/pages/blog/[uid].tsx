@@ -5,10 +5,10 @@ import Error from '../../lib/components/Error';
 import Tag from '../../lib/components/Tag';
 import { Authorization } from '../../lib/authorization';
 import { dateString, classNames, valueOf } from '../../lib/util';
-import db, { id as dbid, now, Post, FileCollection } from '../../lib/db';
+import db, { id as dbid, now, Post, FileCollection, User, Comment } from '../../lib/db';
 import { useSession } from 'next-auth/client';
 import { useEffect, useState } from 'react';
-import { MdAdd, MdSearch, MdClose, MdDone, MdEdit } from 'react-icons/md';
+import { MdAdd, MdSearch, MdClose, MdDone, MdEdit, MdChatBubbleOutline, MdFavorite, MdFavoriteBorder, MdExpandMore, MdExpandLess } from 'react-icons/md';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 
@@ -21,9 +21,11 @@ export default function Blog(props: BlogProps){
     const router = useRouter();
 
     const [posts, setPosts] = useState([] as Post[]);
+    const [comments, setComments] = useState(new Map() as Map<string, Comment[]>)
     const [collections, setCollections] = useState({} as Map<string, FileCollection>);
     const [search, setSearch] = useState({term: ''});
     const [filters, setFilters] = useState([] as string[]);
+    const [user, setUser] = useState({} as User);
 
     const [error, setError] = useState(null);
 
@@ -106,24 +108,31 @@ export default function Blog(props: BlogProps){
 
     async function getData(){
         try {
+            const userSnapshot = await db.users.doc(uid as string).get();
+            const dbUser = userSnapshot.data();
+
             const postsSnapshot = await db.posts.where('author_id', '==', uid).get();
             const dbPosts = postsSnapshot.docs.map(doc => doc.data());
+            let dbComments = new Map();
 
-            const collectionsSnapshot = await db.file_collections.where('author_id', '==', uid).get();
-            const dbCollections = collectionsSnapshot.docs.map(doc => doc.data());
-            let collectionMap: Map<string, FileCollection> = new Map();
-
-            for(let i = 0; i < dbCollections.length; i++){
-                const collection = dbCollections[i];
-
-                collectionMap[collection.id] = collection;
+            for(let post of dbPosts){
+                const commentsSnapshot = await db.comments(post.id).get();
+                dbComments[post.id] = commentsSnapshot.docs.map(doc => doc.data());
             }
 
-            setCollections(collectionMap);
+            const collectionsSnapshot = await db.file_collections.where('author_id', '==', uid).get();
+            let dbCollections = new Map();
+
+            for(let collection of collectionsSnapshot.docs.map(doc => doc.data())){
+                dbCollections[collection.id] = collection;
+            }
+
+            setCollections(dbCollections);
             setPosts(dbPosts);
+            setUser(dbUser);
             setDbLoaded(true);
         }catch(_e){
-            setError('There was an error loading your posts');
+            setError('There was an error loading posts');
         }
     }
 
@@ -179,13 +188,14 @@ export default function Blog(props: BlogProps){
 
     return (
         <Layout
-            authorization={Authorization.USER}
+            authorization={Authorization.SHARED}
+            author={user}
             gapis={[]}
             onGapisLoad={() => setApisLoaded(true)}
             noPadding
         >
             <div className="flex flex-col items-center bg-gradient-to-r from-blue-300 to-indigo-700 w-full py-10 text-white">
-                <h1 className="font-bold text-3xl text-center my-4">Blog</h1>
+                <h1 className="font-bold text-3xl text-center my-4">{user.name && !owned ? user.name + "'s Blog" : 'Blog'}</h1>
                 <div className={classNames(
                     'flex items-center text-lg text-gray-100 my-4 rounded transition-all',
                     searchFocused && 'shadow-lg'
@@ -302,7 +312,6 @@ export default function Blog(props: BlogProps){
                                     <>No collections yet. <Link href="/collections/new"><a className="text-blue-500 hover:underline">Add one</a></Link></>
                                     :
                                     <>No collections tagged by this user</>
-
                                 }
                             </p>
                         }
@@ -324,8 +333,51 @@ interface PostProps {
 }
 
 function BlogPost(props: PostProps){
-    const [editing, setEditing] = useState(props.locked || !!props.editing);
+    const [session, loading] = useSession();
+
+    const [comments, setComments] = useState([] as Comment[]);
+    const [users, setUsers] = useState(new Map() as Map<string, User>);
+
+    const [editing, setEditing] = useState(!props.locked && props.editing);
+    const [expand, setExpand] = useState(false);
+    const [dbLoaded, setDbLoaded] = useState(false);
+
     const post = props.post;
+    const setComment = (cid: string) => {
+        return (cb: StateSetter) => {
+            setComments(currentComments => currentComments.map(c => c.id == cid ? cb(c) : c));
+        }
+    }
+
+    async function getData(pid: string){
+        const commentSnapshot = await db.comments(pid).get();
+        const dbComments = commentSnapshot.docs.map(doc => doc.data());
+
+        const dbUsers = new Map();
+
+        for(let comment of dbComments){
+            const doc = await db.users.doc(comment.author_id).get();
+
+            if(doc.exists){
+                const user = doc.data();
+
+                dbUsers[user.id] = {
+                    bio_pic: user.bio_pic,
+                    name: user.name
+                };
+            }
+        }
+
+        setComments(dbComments);
+        setUsers(dbUsers);
+        setDbLoaded(true);
+    }
+
+    useEffect(() => {
+        if(!dbLoaded && post){
+            getData(post.id);
+        }
+    }, [post, dbLoaded]);
 
     return (
         <div
@@ -335,34 +387,47 @@ function BlogPost(props: PostProps){
                 editing ? 'shadow border-gray-100' : 'border-gray-200'
             )}
         >
-            <div className="my-3 text-xl">
+            <div className="my-3">
                 {editing ?
-                    <Input type="text" name="title" className="font-bold w-full text-gray-600" placeholder="Post title" setForm={props.setPost} value={post.title}/>
+                    <Input type="text" name="title" className="text-xl font-bold w-full text-gray-600" placeholder="Post title" setForm={props.setPost} value={post.title}/>
                     :
                     <div className="flex items-start">
                         <div className="flex-grow">
-                            <h1 className="font-bold">{post.title}</h1>
-                            <p className="text-gray-400 text-base mt-2">{dateString(post.created_at)}</p>
+                            <h1 className="text-xl font-bold">{post.title}</h1>
+                            <p className="text-gray-400 mt-2">{dateString(post.created_at)}</p>
                         </div>
-                        {!props.locked &&
-                            <>
-                                <Button className="mx-2 text-gray-500" onClick={() => setEditing(true)} customPadding>
-                                    <MdEdit size="0.9em"/>
-                                </Button>
-                                <Button
-                                    className="mx-2 text-gray-500"
-                                    onClick={() => {
-                                        if(confirm(`Are you sure you want to delete post "${post.title}"?`)){
-                                            db.posts.doc(post.id).delete();
-                                            props.removePost();
-                                        }
-                                    }}
-                                    customPadding
-                                >
-                                    <MdClose size="0.9em"/>
-                                </Button>
-                            </>
-                        }
+                        {!(props.locked || editing) && <div className="flex flex-col items-end text-sm">
+                            <Button onClick={() => setExpand(!expand)} className="text-right text-lg mb-2" customPadding>
+                                {expand ?
+                                    <MdExpandLess/>
+                                    :
+                                    <MdExpandMore/>
+                                }
+                            </Button>
+                            {expand &&
+                                <div className="shadow p-1 w-28">
+                                    <Button
+                                        className="border border-indigo-500 text-indigo-500 hover:text-white hover:bg-indigo-500 w-full my-1"
+                                        onClick={() => setEditing(true)}
+                                        icon={<MdEdit/>}
+                                    >
+                                        Edit
+                                    </Button>
+                                    <Button
+                                        className="text-red-700 border border-red-700 hover:text-white hover:bg-red-700 w-full my-1"
+                                        onClick={() => {
+                                            if(confirm(`Are you sure you want to delete post "${post.title}"?`)){
+                                                db.posts.doc(post.id).delete();
+                                                props.removePost();
+                                            }
+                                        }}
+                                        icon={<MdClose/>}
+                                    >
+                                        Delete
+                                    </Button>
+                                </div>
+                            }
+                        </div>}
                     </div>
                 }
             </div>
@@ -459,6 +524,44 @@ function BlogPost(props: PostProps){
                 >
                     Cancel
                 </Button>
+            </div>}
+            {comments.length > 0 || props.locked && <div className="my-3">
+                {comments.map(comment => {
+                    const showInputs = comment.awaiting_save;
+
+                    return (
+                        <div className="flex">
+
+                            <div className="flex-grow">
+                                {showInputs ?
+                                    <Input type="text" className="w-full" name="body" setForm={setComment}/>
+                                    :
+                                    <p>{comment.body}</p>
+                                }
+                            </div>
+                        </div>
+                    )
+                })}
+                {(props.locked && !comments.find(comment => comment.awaiting_save)) &&
+                    <Button
+                        className="border border-indigo-500 text-indigo-500 hover:shadow hover:text-white hover:bg-indigo-500"
+                        icon={<MdChatBubbleOutline/>}
+                        onClick={() => {
+                            if(session && !loading){
+                                setComments(currentComments => [
+                                    ...currentComments,
+                                    {
+                                        body: '',
+                                        author_id: session.user.id,
+                                        awaiting_save: true
+                                    }
+                                ]);
+                            }
+                        }}
+                    >
+                        Add a comment
+                    </Button>
+                }
             </div>}
         </div>
     );

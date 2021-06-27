@@ -145,7 +145,6 @@ export default function Input(props: InputProps){
         );
     }else if(props.type == 'datalist'){
         const [focused, setFocused] = useState(false);
-        const [listClicked, setListClicked] = useState(false);
         const handleOption = staticHandler(props.setForm, props.name);
         const dataListBaseClasses = classNames(
             !props.customRounding && 'rounded',

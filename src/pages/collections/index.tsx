@@ -2,7 +2,7 @@ import { Authorization } from '../../lib/authorization';
 import Layout from '../../lib/components/Layout';
 import Error from '../../lib/components/Error';
 import Button, { Cta } from '../../lib/components/Button';
-import db, { FileCollection } from '../../lib/db';
+import db, { User, FileCollection } from '../../lib/db';
 import { merge } from '../../lib/util';
 import { useSession } from 'next-auth/client';
 import { useState, useEffect } from 'react';
@@ -15,6 +15,7 @@ export default function Collection(){
     const [collections, setCollections] = useState([] as FileCollection[]);
     const [artifacts, setArtifacts] = useState({} as Map<string, number>)
     const [posts, setPosts] = useState({} as Map<string, number>);
+    const [user, setUser] = useState({} as User);
     const [error, setError] = useState(null);
 
     const [dbLoaded, setDbLoaded] = useState(false);
@@ -23,6 +24,9 @@ export default function Collection(){
 
     async function getData(){
         try {
+            const userSnapshot = await db.users.doc(session.user.id).get();
+            const dbUser = userSnapshot.data();
+
             const snapshot = await db.file_collections.where('author_id', '==', session.user.id).get();
             const dbCollections = snapshot.docs.map(doc => doc.data());
             const dbArtifacts: Map<string, number> = new Map();
@@ -41,6 +45,7 @@ export default function Collection(){
             setCollections(currentCollections => merge<FileCollection>(currentCollections, dbCollections, 'drive_id'));
             setPosts(dbPosts);
             setArtifacts(dbArtifacts);
+            setUser(dbUser);
 
             setDbLoaded(true);
         }catch(_e){
@@ -69,6 +74,10 @@ export default function Collection(){
                 const snapshot = await db.artifacts(collection.id).get();
                 const collectionArtifacts = snapshot.docs.map(doc => doc.data());
                 const drive = await db.drive(client);
+
+                for(let permission of user.shared_with){
+                    drive.file_collections.unshare([collection, collectionArtifacts], permission);
+                }
 
                 drive.file_collections.remove([
                     collection,
@@ -120,13 +129,14 @@ export default function Collection(){
                             <div key={collection.id}>
                                 <div className="m-4 bg-purple-100 shadow rounded w-56">
                                     <div className="text-gray-600 px-4 pt-1 pb-2">
-                                        <div className="flex">
+                                        <div className="flex items-start">
                                             <p className="text-lg font-bold my-2 h-full flex-grow">
                                                 {collection.title}
                                             </p>
                                             {posts[collection.id] == 0 && <Button
-                                                customPadding
+                                                className="py-3"
                                                 onClick={() => remove(window.gapi.client, collection)}
+                                                customPadding
                                             >
                                                 <MdClose/>
                                             </Button>}
