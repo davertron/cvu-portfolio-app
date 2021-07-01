@@ -14,6 +14,23 @@ interface PickerProps extends Parent {
 
 const developerKey = process.env.NEXT_PUBLIC_API_KEY;
 
+// Drive's non-shortcut mime types
+const DRIVE_TYPES = [
+    'audio',
+    'document',
+    'drawing',
+    'file',
+    'form',
+    'fusiontable',
+    'map',
+    'photo',
+    'presentation',
+    'script',
+    'site',
+    'spreadsheet',
+    'video'
+].map(type => `application/vnd.google-apps.${type}`);
+
 export default function Picker(props: PickerProps){
     const [session, loading] = useSession();
     const [createPicker, setCreatePicker] = useState(false);
@@ -21,6 +38,7 @@ export default function Picker(props: PickerProps){
 
     function create(google, token: string){
         const view = new google.picker.DocsView(google.picker.ViewId[props.viewId]);
+        view.setMimeTypes(DRIVE_TYPES.join(','));
         view.setOwnedByMe(true);
 
         const picker = new google.picker.PickerBuilder()

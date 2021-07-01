@@ -23,7 +23,8 @@ export default function Nav(){
                 {children: <><MdAdd className="inline mr-1"/>New Collection</>, href: '/collections/new', cta: true},
                 {children: 'Collections', href: '/collections'},
                 {children: 'Blog', href: '/blog'},
-                {children: 'Profile', href: homepage(session), img: session.user.image, dropdown: [
+                {children: 'Shared', href: '/shared'},
+                {children: 'Profile', href: homepage(session), alt: 'Profile', img: session.user.image, dropdown: [
                     {children: 'Profile', href: homepage(session)},
                     {children: 'Sign out', onClick: () => signOut()}
                 ]}
@@ -104,6 +105,7 @@ interface LinkProps extends Props, Interactive, Parent {
     name?: Child
     important?: boolean
     img?: string
+    alt?: string
     cta?: boolean
     dropdown?: LinkProps[]
 }
@@ -122,10 +124,10 @@ function NavLink(props: LinkProps){
                             'h-8 w-8 rounded-full align-middle cursor-pointer',
                             active && 'border border-indigo-400'
                         )}
-                        alt={props.href}
+                        alt={props.alt}
                     />
                 </Menu.Button>
-                <Menu.Items className="origin-top-right absolute right-0 mt-11 w-48 rounded border border-gray-200 bg-white shadow focus:outline-none">
+                <Menu.Items className="origin-top-right absolute right-0 mt-11 w-48 rounded border border-gray-200 bg-white shadow focus:outline-none z-10">
                     {props.dropdown.map(option => (
                         <Menu.Item key={option.children as string}>
                             {_e => (

@@ -1,24 +1,38 @@
 import Layout from '../../lib/components/Layout';
 import Error from '../../lib/components/Error';
-import Input from '../../lib/components/Input';
+import Input, { StateSetter } from '../../lib/components/Input';
 import Tag from '../../lib/components/Tag';
+import Button, { OutlineButton, Cta } from '../../lib/components/Button';
 import { Authorization } from '../../lib/authorization';
-import db, { FileCollection } from '../../lib/db';
-import { MdEdit, MdClose, MdCheck } from 'react-icons/md';
+import db, { User, FileCollection, Permission } from '../../lib/db';
+import { classNames, loadStarted, warnIfUnsaved } from '../../lib/util';
+import { MdEdit, MdClose, MdCheck, MdPersonAdd, MdAdd } from 'react-icons/md';
 import { useSession } from 'next-auth/client';
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import NProgress from 'nprogress';
 
 export default function Profile(){
     const [session, loading] = useSession();
 
-    const [user, setUser] = useState(null);
+    const [user, setUser] = useState(new User({}));
     const [collections, setCollections] = useState([] as FileCollection[]);
     const [error, setError] = useState(null);
-    const [editing, setEditing] = useState(false);
+
+    const setPermission = (email: string) => ((cb: StateSetter) => {
+        setUser(currentUser => currentUser.with({
+            shared_with: currentUser.shared_with.map(p => p.email == email ? cb(p) : p)
+        }));
+    });
+
+    const [toShareWith, setToShareWith] = useState('');
+    const [sharingError, setSharingError] = useState(null);
+    const [sharedWith, setSharedWith] = useState(new Map<string, User>());
     const [files, setFiles] = useState([]);
 
+    const [saveDisabled, setSaveDisabled] = useState(false);
+    const [editing, setEditing] = useState(false);
     const [dbLoaded, setDbLoaded] = useState(false);
     const [driveLoaded, setDriveLoaded] = useState(false);
     const [apisLoaded, setApisLoaded] = useState(false);
@@ -26,20 +40,50 @@ export default function Profile(){
     const router = useRouter();
     const { id } = router.query;
 
+    const visibleSharedWith = user.shared_with ? user.shared_with.filter(permission => !permission.awaiting_delete) : [];
+
+    const validate = (email: string) => {
+        const parts = email.split('@');
+
+        if(parts.length == 2){
+            const [address, domain] = parts;
+            return address != '' && domain == 'cvsdvt.org' && sharingError == null && user.shared_with.filter(p => !p.awaiting_delete && p.email != email).length == 0;
+        }
+
+        return false;
+    }
+
     async function getData(uid: string, userOnly?: boolean){
         if(uid){
             try {
+                setDbLoaded(null);
+
                 const doc = await db.users.doc(uid).get();
 
                 if(doc.exists){
-                    setUser(doc.data());
+                    const dbUser = doc.data();
+
+                    setUser(dbUser);
                     setError(null);
 
                     if(!userOnly){
-                        const fileCollectionsRef = await db.file_collections.where('author_id', '==', uid).get();
-                        const fileCollections = fileCollectionsRef.docs.map(doc => doc.data());
-                        setCollections(fileCollections);
+                        const snapshot = await db.file_collections.where('author_id', '==', uid).get();
+                        const dbCollections = snapshot.docs.map(doc => doc.data());
+                        setCollections(dbCollections);
                     }
+
+                    const dbSharedWith: Map<string, User> = new Map();
+
+                    for(let permission of dbUser.shared_with){
+                        const snapshot = await db.users.where('email', '==', permission.email).get();
+
+                        if(!snapshot.empty){
+                            const docs = snapshot.docs.map(doc => doc.data());
+                            dbSharedWith[permission.email] = docs[0];
+                        }
+                    }
+
+                    setSharedWith(dbSharedWith);
 
                     setDbLoaded(true);
                 }else{
@@ -54,6 +98,8 @@ export default function Profile(){
 
     async function getDriveData(client){
         try {
+            setDriveLoaded(null);
+
             const drive = await db.drive(client);
             const updated = await Promise.all(collections.map(async collection => {
                 const [driveCollection] = await drive.file_collections.load([collection, []]);
@@ -62,46 +108,52 @@ export default function Profile(){
 
             setCollections(updated);
             setDriveLoaded(true);
-        }catch(_e){
+        }catch(e){
             setError('There was an error syncing with drive');
         }
     }
 
     useEffect(() => {
-        if(!dbLoaded){
-            getData(id as string);
+        if(!loadStarted(dbLoaded)){
+            getData(id as string, dbLoaded == null);
         }
 
-        if(dbLoaded && !driveLoaded && apisLoaded){
+        if(dbLoaded && !loadStarted(driveLoaded) && apisLoaded){
             getDriveData(window.gapi.client);
         }
-    }, [id, dbLoaded, apisLoaded, driveLoaded]);
+
+        warnIfUnsaved(editing || saveDisabled);
+    }, [id, dbLoaded, apisLoaded, driveLoaded, editing, saveDisabled]);
 
     return (
         <Layout
-            authorization={Authorization.USER}
+            authorization={Authorization.SHARED}
+            author={user}
+            authorLoaded={dbLoaded}
             gapis={[]}
             onGapisLoad={() => setApisLoaded(true)}
         >
             {error && <Error error={error}/>}
             {user && session &&
-                <div className="flex flex-wrap justify-center w-screen rounded py-3 px-5 text-gray-600">
-                    <div className="m-6 flex-column w-80">
+                <div className="flex flex-wrap-reverse justify-center w-screen rounded py-3 px-5 text-gray-600 relative">
+                    <div className="m-8 flex-column w-80">
                         {editing ?
-                            <Input
-                                type="file"
-                                setFiles={setFiles}
-                            >
-                                <div className="relative">
-                                    <img src={files.length > 0 ? files[0].preview.url : user.bio_pic} alt="profile" className="w-64 rounded mb-6 shadow-lg"/>
-                                    <div className="absolute top-0 w-64 h-full bg-gray-600 opacity-50 rounded text-center"></div>
-                                    <div className="absolute top-0 w-64 h-full rounded flex flex-column items-center justify-center">
-                                        <MdEdit className="text-white" size="1.5em"/>
+                            <>
+                                <Input
+                                    type="file"
+                                    setFiles={setFiles}
+                                >
+                                    <div className="relative">
+                                        <img src={files.length > 0 ? files[0].preview.url : user.bio_pic} alt="profile" className="w-full rounded mb-6 shadow-lg"/>
+                                        <div className="absolute top-0 w-full h-full bg-gray-600 opacity-50 rounded text-center"></div>
+                                        <div className="absolute top-0 w-full h-full rounded flex flex-column items-center justify-center">
+                                            <MdEdit className="text-white" size="1.5em"/>
+                                        </div>
                                     </div>
-                                </div>
-                            </Input>
+                                </Input>
+                            </>
                             :
-                            <img src={user.bio_pic} alt="profile" className="w-64 rounded mb-6 shadow-lg"/>
+                            <img src={user.bio_pic} alt="profile" className="w-full rounded mb-6 shadow-lg"/>
                         }
                         {files.length > 0 && editing &&
                             <div>
@@ -117,12 +169,12 @@ export default function Profile(){
                             </div>
                         }
                         <div>
-                            <h3 className="font-bold text-gray-700 text-lg my-2">Collections</h3>
+                            <h3 className="font-bold text-gray-600 text-lg my-2">Collections</h3>
                             <hr className="block"/>
-                            <div className="my-1 flex flex-wrap">
+                            <div className="my-2 flex flex-wrap">
                                 {collections.length > 0 ?
                                     collections.map(collection => (
-                                        <Tag href={'/collections/' + collection.id} className="mr-4 my-2">
+                                        <Tag href={'/collections/' + collection.id} key={collection.id} className="mr-4 my-2">
                                             {collection.title}
                                         </Tag>
                                     ))
@@ -131,8 +183,111 @@ export default function Profile(){
                                 }
                             </div>
                         </div>
+                        {session.user.id == id && <div>
+                            <h3 className="font-bold text-gray-600 text-lg mb-2 mt-4">Sharing</h3>
+                            <hr/>
+                            <div className="my-1">
+                                {visibleSharedWith.length > 0 &&
+                                    <>
+                                        <p className="text-gray-500 pt-3">Users who can see your portfolio</p>
+                                        <div className="py-1">
+                                            {visibleSharedWith.map(permission => sharedWith[permission.email] && (
+                                                <div className="my-3 bg-gray-50 rounded px-2 py-2 flex" key={permission.email}>
+                                                    <div className="mr-3 p-1 pr-3 border-r border-gray-200">
+                                                        <div
+                                                            className="rounded-full h-10 w-10 bg-cover flex-shrink-0"
+                                                            style={{backgroundImage: `url(${sharedWith[permission.email].bio_pic})`}}
+                                                        />
+                                                    </div>
+                                                    <div className="mr-3 flex-grow">
+                                                        <h4 className="font-bold">{sharedWith[permission.email].name}</h4>
+                                                        <p>{permission.email}</p>
+                                                    </div>
+                                                    {editing && <div>
+                                                        <Button
+                                                            onClick={() => {
+                                                                setPermission(permission.email)(currentPermission => ({
+                                                                    ...currentPermission,
+                                                                    awaiting_delete: true
+                                                                }));
+                                                            }}
+                                                            className="text-gray-400 focus:text-gray-700"
+                                                            customPadding
+                                                        >
+                                                            <MdClose/>
+                                                        </Button>
+                                                    </div>}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </>
+                                }
+                                {editing ?
+                                    <div className="my-3">
+                                        {sharingError && <Error error={sharingError}/>}
+                                        <div className="flex w-full rounded bg-gray-100">
+                                            <Input
+                                                type="text"
+                                                placeholder="Enter email"
+                                                className="flex-grow bg-transparent"
+                                                value={toShareWith}
+                                                onInput={e => {
+                                                    setToShareWith(e.target.value);
+
+                                                    if(sharingError){
+                                                        setSharingError(null);
+                                                    }
+                                                }}
+                                                customBg
+                                            />
+                                        </div>
+                                        <Cta
+                                            disabled={validate(toShareWith)}
+                                            className="w-full my-2 font-bold"
+                                            onClick={async () => {
+                                                const snapshot = await db.users.where('email', '==', toShareWith).get();
+
+                                                if(snapshot.empty){
+                                                    setSharingError('No user exists with email ' + toShareWith);
+                                                }else{
+                                                    const docs = snapshot.docs.map(doc => doc.data());
+                                                    const user = docs[0];
+
+                                                    setUser(currentUser => currentUser.with({
+                                                        shared_with: [
+                                                            ...currentUser.shared_with,
+                                                            new Permission({email: user.email})
+                                                        ]
+                                                    }));
+
+                                                    setSharedWith(currentSharedWith => ({
+                                                        ...currentSharedWith,
+                                                        [toShareWith]: user
+                                                    }));
+
+                                                    setToShareWith('');
+                                                    setSharingError(null);
+                                                }
+                                            }}
+                                            icon={<MdAdd/>}
+                                        >
+                                            Add
+                                        </Cta>
+                                    </div>
+                                    :
+                                    <Cta
+                                        icon={<MdPersonAdd/>}
+                                        onClick={() => setEditing(true)}
+                                        className="w-full my-3"
+                                        gradient={user.shared_with && user.shared_with.length == 0}
+                                    >
+                                        {user.shared_with && user.shared_with.length > 0 ? 'Add viewers' : 'Share your portfolio'}
+                                    </Cta>
+                                }
+                            </div>
+                        </div>}
                     </div>
-                    <div className="m-6 w-72">
+                    <div className="m-8 w-72">
                         {editing ?
                             <Input type="text" className="w-full text-xl font-bold" value={user.name} name="name" setForm={setUser}/>
                             :
@@ -145,53 +300,92 @@ export default function Profile(){
                             <p>{user.bio || <span className="text-gray-500">No bio yet</span>}</p>
                         }
                     </div>
-                    <div className="ml-3 my-6 flex flex-col">
-                        {session.user.id == id &&
-                            <button className="rounded-full border border-gray-500 p-2 hover:bg-gray-500 hover:text-white focus:outline-none my-1 transition-colors" onClick={async () => {
-                                if(editing) await getData(id, true);
-                                setEditing(!editing);
-                            }}>
-                                {editing ? <MdClose/> : <MdEdit/>}
-                            </button>
-                        }
+                    {session.user.id == id && <div className="w-0 overflow-x-visible relative flex flex-col my-7 border-l border-purple-50">
+                        <div className="absolute pl-5">
+                            <OutlineButton
+                                color="indigo-500"
+                                icon={editing ? <MdClose/> : <MdEdit/>}
+                                className="mb-3"
+                                onClick={async () => {
+                                    // Setting dbLoaded to null reloads page data with userOnly=true
+                                    if(editing) setDbLoaded(null);
+                                    setEditing(!editing);
+                                }}
+                            >
+                                {editing ? 'Cancel' : 'Edit'}
+                            </OutlineButton>
+                            {editing &&
+                                <Cta
+                                    disabled={saveDisabled}
+                                    icon={<MdCheck/>}
+                                    className="mb-3 font-bold"
+                                    onClick={async () => {
+                                        try {
+                                            const updated = user;
 
-                        {editing &&
-                            <button className="rounded-full border border-purple-400 text-purple-400 p-2 hover:bg-purple-400 hover:text-white focus:outline-none my-1 transition-colors" onClick={() => {
-                                if(files.length > 0){
-                                    const file = files[0];
+                                            setSaveDisabled(true);
+                                            NProgress.start();
 
-                                    db.avatars(session.user.id + '.' + file.extension).put(file).then(async snapshot => {
-                                        const url = await snapshot.ref.getDownloadURL();
-                                        const oldURL = user.bio_pic;
-                                        const update = {
-                                            ...user,
-                                            bio_pic: url
-                                        };
+                                            const drive = await db.drive(window.gapi.client);
 
-                                        db.users.doc(session.user.id as string).set(update).then(_snapshot => {
-                                            setUser(update);
-                                            setFiles([]);
-                                        });
+                                            let driveSharedWith = await Promise.all(user.shared_with.map(async permission => {
+                                                for(let collection of collections){
+                                                    const artifactSnapshot = await db.artifacts(collection.id).get();
+                                                    const artifacts = artifactSnapshot.docs.map(doc => doc.data());
 
-                                        // Delete old file, if it was actually uploaded to the bucket
-                                        db.avatars(oldURL).delete().catch(_e => {});
-                                    });
+                                                    permission = await drive.file_collections.set_access([collection, artifacts], permission);
+                                                }
 
-                                    setUser({
-                                        ...user,
-                                        bio_pic: file.preview.url
-                                    });
-                                }else{
-                                    setFiles([]);
-                                    db.users.doc(session.user.id as string).set(user);
-                                }
+                                                return permission;
+                                            }));
 
-                                setEditing(false);
-                            }}>
-                                <MdCheck/>
-                            </button>
-                        }
-                    </div>
+                                            driveSharedWith = driveSharedWith.filter(permission => !permission.awaiting_delete);
+                                            updated.concat({shared_with: driveSharedWith});
+
+                                            if(files.length > 0){
+                                                const file = files[0];
+
+                                                await db.avatars(session.user.id + '.' + file.extension).put(file).then(async snapshot => {
+                                                    const url = await snapshot.ref.getDownloadURL();
+                                                    const oldURL = user.bio_pic;
+                                                    updated.concat({bio_pic: url});
+
+                                                    db.users.doc(session.user.id as string).set(updated).then(_snapshot => {
+                                                        setUser(updated);
+                                                        setFiles([]);
+                                                    });
+
+                                                    // Delete old file, if it was actually uploaded to the bucket
+                                                    db.avatars(oldURL).delete().catch(_e => {});
+                                                });
+
+                                                setUser(currentUser => currentUser.with({
+                                                    bio_pic: file.preview.url,
+                                                    shared_with: driveSharedWith
+                                                }));
+                                            }else{
+                                                setFiles([]);
+
+                                                await db.users.doc(session.user.id as string).set(updated);
+                                                setUser(updated);
+                                            }
+
+                                            NProgress.done();
+                                            setSaveDisabled(false);
+                                            setEditing(false);
+                                        }catch(_e){
+                                            setError('There was an error saving your profile');
+                                        }finally{
+                                            NProgress.done();
+                                            setSaveDisabled(false);
+                                        }
+                                    }}
+                                >
+                                    Save
+                                </Cta>
+                            }
+                        </div>
+                    </div>}
                 </div>
             }
         </Layout>

@@ -1,30 +1,31 @@
 import { Authorization } from '../../lib/authorization';
 import Layout from '../../lib/components/Layout';
 import Input, { StateSetter } from '../../lib/components/Input';
-import Button, { Cta } from '../../lib/components/Button';
+import Button, { OutlineButton, Cta } from '../../lib/components/Button';
 import Picker from '../../lib/components/Picker';
 import Error from '../../lib/components/Error';
-import db, { id as dbid, FileCollection, Artifact } from '../../lib/db';
-import { classNames } from '../../lib/util';
+import db, { FileCollection, Artifact, User } from '../../lib/db';
+import { classNames, loadStarted, warnIfUnsaved } from '../../lib/util';
 import { Interactive } from '../../lib/components/types';
 import { useSession } from 'next-auth/client';
 import { useRouter } from 'next/router';
 import { useState, useEffect } from 'react';
-import { MdCloudUpload, MdClose, MdDoneAll, MdEdit, MdOpenInNew, MdStar, MdStarBorder } from 'react-icons/md';
+import { MdCloudUpload, MdClose, MdDoneAll, MdEdit, MdOpenInNew } from 'react-icons/md';
+import { AiFillPushpin, AiOutlinePushpin } from 'react-icons/ai';
 import { CgFeed } from 'react-icons/cg';
 import NProgress from 'nprogress';
 
 interface CollectionProps {
     creating?: boolean
+    authorization?: Authorization
 }
 
 export default function Collection(props: CollectionProps){
     const [session, loading] = useSession();
 
-    const [collection, setCollection] = useState({
-        title: ''
-    } as FileCollection);
+    const [collection, setCollection] = useState(new FileCollection({}));
     const [artifacts, setArtifacts] = useState([] as Artifact[]);
+    const [user, setUser] = useState(new User({}));
 
     const [editing, setEditing] = useState(false);
     const [saveDisabled, setSaveDisabled] = useState(false);
@@ -38,6 +39,7 @@ export default function Collection(props: CollectionProps){
     const router = useRouter();
     const { id } = router.query;
     const showInputs = props.creating || editing;
+    const owned = session && collection.author_id == session.user.id
 
     const removeArtifact = (aid: string) => {
         return () => {
@@ -53,22 +55,34 @@ export default function Collection(props: CollectionProps){
 
     const validate = (collection: FileCollection, artifacts: Artifact[]) => (collection.title && collection.title.trim() != '');
 
-    async function getData(cid: string){
+    async function getData(cid?: string){
         try {
-            const snapshot = await db.file_collections.doc(cid).get();
-            const dbCollection = snapshot.data();
+            setDbLoaded(null);
+            let dbUser = new User({});
 
-            if(dbCollection){
-                const artifactsSnapshot = await db.artifacts(cid).get();
-                const dbArtifacts = artifactsSnapshot.docs.map(doc => doc.data());
+            if(cid){
+                const snapshot = await db.file_collections.doc(cid).get();
+                const dbCollection = snapshot.data();
 
-                setArtifacts(dbArtifacts);
-                setCollection(dbCollection);
+                if(dbCollection){
+                    const userSnapshot = await db.users.doc(dbCollection.author_id).get();
+                    dbUser = userSnapshot.data();
 
-                setDbLoaded(true);
+                    const artifactsSnapshot = await db.artifacts(cid).get();
+                    const dbArtifacts = artifactsSnapshot.docs.map(doc => doc.data());
+
+                    setArtifacts(dbArtifacts);
+                    setCollection(dbCollection);
+                }else{
+                    setError('Collection `' + id + '` not found');
+                }
             }else{
-                setError('Collection `' + id + '` not found');
+                const userSnapshot = await db.users.doc(session.user.id).get();
+                dbUser = userSnapshot.data();
             }
+
+            setUser(dbUser);
+            setDbLoaded(true);
         }catch(_e){
             setError('There was an error loading collection ' + id);
         }
@@ -76,6 +90,8 @@ export default function Collection(props: CollectionProps){
 
     async function getDriveData(client){
         try {
+            setDriveLoaded(null);
+            
             const drive = await db.drive(client);
             const [driveCollection, driveArtifacts] = await drive.file_collections.load([
                 collection,
@@ -86,7 +102,8 @@ export default function Collection(props: CollectionProps){
             setArtifacts(driveArtifacts);
 
             setDriveLoaded(true);
-        }catch(_e){
+        }catch(e){
+            console.log(e)
             setError('There was an error syncing with Google Drive')
         }
     }
@@ -102,30 +119,34 @@ export default function Collection(props: CollectionProps){
                 artifacts
             ]);
 
+            driveCollection.concat({author_id: session.user.id});
+
             if(props.creating){
-                const collectionId = dbid();
-                await db.file_collections.doc(collectionId).set({
-                    drive_id: driveCollection.drive_id,
-                    author_id: session.user.id
-                });
+                await db.file_collections.doc(driveCollection.id).set(driveCollection);
 
                 await Promise.all(
                     driveArtifacts.map(async artifact => {
-                        await db.artifacts(collectionId).doc(artifact.id).set({
-                            drive_id: artifact.drive_id,
-                            shortcut_id: artifact.shortcut_id
-                        });
+                        await db.artifacts(driveCollection.id).doc(artifact.id).set(artifact);
                     })
                 );
 
+                const driveSharedWith = await Promise.all(user.shared_with.map(
+                    async permission => await drive.file_collections.share([driveCollection, driveArtifacts], permission)
+                ));
+
+                db.users.doc(session.user.id).set(user.with({
+                    shared_with: driveSharedWith
+                }));
+                setUser(currentUser => currentUser.with({shared_with: driveSharedWith}));
+
                 setArtifacts([]);
-                setCollection({title: ''});
-                router.push('/collections/' + collectionId);
+                setCollection(new FileCollection({}));
+                setSaveDisabled(false);
+                NProgress.done();
+
+                router.push('/collections/' + driveCollection.id);
             }else{
-                db.file_collections.doc(id as string).set({
-                    drive_id: driveCollection.drive_id,
-                    author_id: session.user.id
-                });
+                db.file_collections.doc(id as string).set(driveCollection);
 
                 driveArtifacts.map(artifact => {
                     const doc = db.artifacts(id as string).doc(artifact.id);
@@ -133,38 +154,39 @@ export default function Collection(props: CollectionProps){
                     if(artifact.awaiting_delete){
                         doc.delete();
                     }else{
-                        doc.set({
-                            drive_id: artifact.drive_id,
-                            shortcut_id: artifact.shortcut_id
-                        });
+                        doc.set(artifact);
                     }
                 });
 
                 setArtifacts(currentArtifacts => currentArtifacts.filter(artifact => !artifact.awaiting_delete));
                 setEditing(false);
+                setSaveDisabled(false);
+                NProgress.done();
             }
         }catch(e){
-            console.log(e)
             setError(`An error ${e.status ? `(${e.status})` : ''} was encountered while saving this collection`);
         }
-
-        setSaveDisabled(false);
-        NProgress.done();
     }
 
     useEffect(() => {
-        if(session && !loading && !props.creating && !dbLoaded){
-            getData(id as string);
+        if(!loading && !loadStarted(dbLoaded)){
+            if(props.creating) getData();
+            else getData(id as string);
         }
 
-        if(dbLoaded && !driveLoaded && apisLoaded){
+        if(dbLoaded && !props.creating && !loadStarted(driveLoaded) && apisLoaded){
             getDriveData(window.gapi.client);
         }
-    }, [loading, dbLoaded, driveLoaded, apisLoaded, id]);
+
+        warnIfUnsaved(editing || props.creating || saveDisabled);
+
+    }, [loading, dbLoaded, driveLoaded, apisLoaded, id, editing, saveDisabled]);
 
     return (
         <Layout
-            authorization={Authorization.USER}
+            authorization={props.authorization || Authorization.SHARED}
+            author={user}
+            authorLoaded={dbLoaded}
             gapis={['picker']}
             onGapisLoad={() => setApisLoaded(true)}
             noPadding
@@ -193,7 +215,10 @@ export default function Collection(props: CollectionProps){
                                     />
                                 </div>
                                 :
-                                <h1 className="font-bold text-2xl text-center my-2">{collection.title}</h1>
+                                <div className="text-center">
+                                    <h1 className="font-bold text-2xl py-2">{collection.title}</h1>
+                                    {(!owned && user.name) && <h2 className="text-gray-100 text-lg py-2">{user.name}</h2>}
+                                </div>
                             }
                         </div>
                         <div className="my-4">
@@ -209,10 +234,10 @@ export default function Collection(props: CollectionProps){
                                                 const doc = picked.docs[i];
 
                                                 if(artifacts.filter(a => a.drive_id == doc.id).length == 0){ // Make sure document is not a duplicate
-                                                    let artifact: Artifact = {drive_id: doc.id};
+                                                    let artifact = new Artifact({drive_id: doc.id});
                                                     artifact = await drive.artifacts.load(artifact);
 
-                                                    updated.push({...artifact, id: dbid()});
+                                                    updated.push(artifact);
                                                 }
                                             }
 
@@ -231,7 +256,7 @@ export default function Collection(props: CollectionProps){
                                     <Cta icon={<MdOpenInNew/>} href={collection.web_view || '#'} target="_blank" className="mx-2" invert>
                                         Open in drive
                                     </Cta>
-                                    <Cta icon={<CgFeed/>} href={'/blog/' + session.user.id + '?tags=' + collection.id} className="mx-2" invert>
+                                    <Cta icon={<CgFeed/>} href={'/blog/' + collection.author_id + '?tags=' + collection.id} className="mx-2" invert>
                                         Tagged posts
                                     </Cta>
                                 </>
@@ -242,58 +267,52 @@ export default function Collection(props: CollectionProps){
                         <Error error={error}/>
                     </div>}
                     <div className="flex flex-wrap justify-center w-full py-3 px-5 text-gray-600 mb-16">
-                        {artifacts.map((artifact, i) => (
+                        {artifacts.map(artifact => (
                             !artifact.awaiting_delete && (
                                 <CollectionArtifact
                                     key={artifact.id}
                                     artifact={artifact}
                                     setArtifact={setArtifact(artifact.id)}
                                     removeArtifact={removeArtifact(artifact.id)}
-                                    onClick={() => setEditing(true)}
+                                    onClick={owned ? () => setEditing(true) : () => {}}
                                     editing={showInputs && !saveDisabled}
                                 />
                             )
                         ))}
                     </div>
-                    {(props.creating || session && collection.author_id == session.user.id) &&
+                    {(props.creating || owned) &&
                         <div className="w-full py-4 fixed bottom-0 border border-top flex flex-row justify-center z-10 bg-white">
                             {showInputs ?
                                 <>
-                                    {validate(collection, artifacts) && <Cta
+                                    <Cta
+                                        disabled={saveDisabled || !validate(collection, artifacts)}
                                         onClick={() => save(window.gapi.client)}
+                                        icon={<MdDoneAll/>}
                                         className="mx-2"
-                                        icon={<MdDoneAll/>}
                                     >
                                         Save
-                                    </Cta>}
-                                    {saveDisabled || !validate(collection, artifacts) && <Cta
-                                        className="bg-gray-200 text-gray-400 cursor-default"
-                                        customBg
-                                        customFont
-                                        icon={<MdDoneAll/>}
-                                    >
-                                        Save
-                                    </Cta>}
-                                    {(!props.creating && !saveDisabled) && <Button
+                                    </Cta>
+                                    {(!props.creating && !saveDisabled) && <OutlineButton
+                                        color="indigo-500"
                                         onClick={() => {
                                             setEditing(false);
                                             setDbLoaded(false);
                                             setDriveLoaded(false);
                                         }}
                                         icon={<MdClose/>}
-                                        className="border border-indigo-500 text-indigo-500 hover:text-white hover:bg-indigo-500 mx-2"
+                                        className="mx-2"
                                     >
                                         Cancel
-                                    </Button>}
+                                    </OutlineButton>}
                                 </>
                                 :
-                                <Button
+                                <OutlineButton
+                                    color="indigo-500"
                                     onClick={() => setEditing(true)}
                                     icon={<MdEdit/>}
-                                    className="border border-indigo-500 text-indigo-500 hover:text-white hover:bg-indigo-500"
                                 >
                                     Edit
-                                </Button>
+                                </OutlineButton>
                             }
                         </div>
                     }
@@ -374,7 +393,7 @@ function CollectionArtifact(props: ArtifactProps){
                                         onClick={() => setPinned(currentPinned => !currentPinned)}
                                         customPadding
                                     >
-                                        {pinned ? <MdStar/> : <MdStarBorder/>}
+                                        {pinned ? <AiFillPushpin/> : <AiOutlinePushpin/>}
                                     </Button>
                                 </>
                             }

@@ -1,5 +1,5 @@
-import db, { id } from '../../../lib/db';
-import NextAuth from 'next-auth';
+import db, { User } from '../../../lib/db';
+import NextAuth, { Session } from 'next-auth';
 import Providers from 'next-auth/providers';
 
 async function refreshAccessToken(token){
@@ -61,32 +61,34 @@ export default NextAuth({
                 };
             }
 
-            if(Date.now() < token.accessTokenExpires){
+            if(Date.now() < (token.accessTokenExpires as number)){
                 return token;
             }
 
             return refreshAccessToken(token);
         },
 
-        async session(session, token){
+        async session(session: Session, token: Session){
             session.user = token.user;
 
             const snapshot = await db.users.where('email', '==', session.user.email).get();
-            let userId: string;
+            let user: User;
 
-            if(snapshot.docs.length > 0){
-                userId = snapshot.docs[0].id;
-            }else{
-                userId = id();
-
-                await db.users.doc(userId).set({
+            if(snapshot.empty){
+                user = new User({
                     name: session.user.name,
                     email: session.user.email.toLowerCase().trim(),
-                    bio_pic: session.user.image as string,
-                });
+                    bio_pic: session.user.image as string
+                })
+
+                await db.users.doc(user.id).set(user);
+            }else{
+                user = snapshot.docs[0].data();
             }
 
-            session.user.id = userId;
+            session.user.id = user.id;
+            session.user.role = user.role;
+            session.user.bio_pic = user.bio_pic;
             session.accessToken = token.accessToken as string;
             session.error = token.error;
 
