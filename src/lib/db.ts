@@ -405,6 +405,7 @@ class DriveDB {
                         resource: {
                             mimeType: 'application/vnd.google-apps.shortcut',
                             parents: [collection_drive_id],
+                            description: artifact.description,
                             shortcutDetails: {
                                 targetId: artifact.drive_id
                             }
@@ -413,6 +414,13 @@ class DriveDB {
                     });
 
                     artifact = artifact.with({shortcut_id: snapshot.result.id});
+                }else{
+                    await this.client.drive.files.update({
+                        resource: {
+                            description: artifact.description
+                        },
+                        fileId: artifact.shortcut_id
+                    })
                 }
             }
 
