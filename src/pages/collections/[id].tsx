@@ -5,7 +5,7 @@ import Button, { OutlineButton, Cta } from '../../lib/components/Button';
 import Picker from '../../lib/components/Picker';
 import Error from '../../lib/components/Error';
 import db, { FileCollection, Artifact, User } from '../../lib/db';
-import { classNames } from '../../lib/util';
+import { classNames, loadStarted, warnIfUnsaved } from '../../lib/util';
 import { Interactive } from '../../lib/components/types';
 import { useSession } from 'next-auth/client';
 import { useRouter } from 'next/router';
@@ -57,6 +57,7 @@ export default function Collection(props: CollectionProps){
 
     async function getData(cid?: string){
         try {
+            setDbLoaded(null);
             let dbUser = new User({});
 
             if(cid){
@@ -89,6 +90,8 @@ export default function Collection(props: CollectionProps){
 
     async function getDriveData(client){
         try {
+            setDriveLoaded(null);
+            
             const drive = await db.drive(client);
             const [driveCollection, driveArtifacts] = await drive.file_collections.load([
                 collection,
@@ -99,7 +102,8 @@ export default function Collection(props: CollectionProps){
             setArtifacts(driveArtifacts);
 
             setDriveLoaded(true);
-        }catch(_e){
+        }catch(e){
+            console.log(e)
             setError('There was an error syncing with Google Drive')
         }
     }
@@ -165,18 +169,18 @@ export default function Collection(props: CollectionProps){
     }
 
     useEffect(() => {
-        if(session && !loading && !props.creating && !dbLoaded){
-            getData(id as string);
+        if(!loading && !loadStarted(dbLoaded)){
+            if(props.creating) getData();
+            else getData(id as string);
         }
 
-        if(session && !loading && props.creating && !dbLoaded){
-            getData();
-        }
-
-        if(dbLoaded && !props.creating && !driveLoaded && apisLoaded){
+        if(dbLoaded && !props.creating && !loadStarted(driveLoaded) && apisLoaded){
             getDriveData(window.gapi.client);
         }
-    }, [loading, dbLoaded, driveLoaded, apisLoaded, id]);
+
+        warnIfUnsaved(editing || props.creating || saveDisabled);
+
+    }, [loading, dbLoaded, driveLoaded, apisLoaded, id, editing, saveDisabled]);
 
     return (
         <Layout

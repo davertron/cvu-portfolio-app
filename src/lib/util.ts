@@ -30,10 +30,25 @@ String.prototype.toTitleCase = function(){
     if(this.length > 0) return this[0].toUpperCase() + this.substring(1, this.length).toLowerCase();
 }
 
-export const createdAt = (a,b) => (a.created_at && b.created_at) ?  valueOf(b.created_at) - valueOf(a.created_at) : 0;
-
 export function classNames(...classes: string[]){
   return classes.filter(Boolean).join(' ');
+}
+
+export function warnUnsavedChanges(e){
+    e.preventDefault();
+    e.returnValue = '';
+}
+
+export function warnIfUnsaved(unsaved: boolean){
+    if(unsaved){
+        window.onbeforeunload = warnUnsavedChanges;
+    }else if(window.onbeforeunload){
+        window.onbeforeunload = null;
+    }
+}
+
+export function loadStarted(loadState: boolean){
+    return loadState || loadState == null;
 }
 
 export function homepage(session: Session){
@@ -62,3 +77,4 @@ export const dateString = (timestamp: Timestamp) => {
 }
 
 export const valueOf = (timestamp: Timestamp) => timestamp.toDate().valueOf();
+export const createdAt = (a,b) => (a.created_at && b.created_at) ?  valueOf(b.created_at) - valueOf(a.created_at) : 0;

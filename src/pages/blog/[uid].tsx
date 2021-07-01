@@ -4,7 +4,7 @@ import Button, { OutlineButton, Cta } from '../../lib/components/Button';
 import Error from '../../lib/components/Error';
 import Tag from '../../lib/components/Tag';
 import { Authorization } from '../../lib/authorization';
-import { dateString, classNames, createdAt } from '../../lib/util';
+import { dateString, classNames, createdAt, warnIfUnsaved, loadStarted } from '../../lib/util';
 import db, { now, Post, FileCollection, User, Comment } from '../../lib/db';
 import { useSession } from 'next-auth/client';
 import { useEffect, useState } from 'react';
@@ -108,6 +108,8 @@ export default function Blog(props: BlogProps){
 
     async function getData(){
         try {
+            setDbLoaded(null);
+
             if(uid){
                 const userSnapshot = await db.users.doc(uid as string).get();
                 const dbUser = userSnapshot.data();
@@ -140,6 +142,8 @@ export default function Blog(props: BlogProps){
 
     async function getDriveData(client){
         try {
+            setDriveLoaded(null);
+
             const drive = await db.drive(client);
             let collectionMap = collections;
 
@@ -162,11 +166,11 @@ export default function Blog(props: BlogProps){
     }
 
     useEffect(() => {
-        if(!loading && !dbLoaded){
+        if(!loading && !loadStarted(dbLoaded)){
             getData();
         }
 
-        if(dbLoaded && apisLoaded && !driveLoaded){
+        if(dbLoaded && apisLoaded && !loadStarted(driveLoaded)){
             getDriveData(window.gapi.client);
         }
 
@@ -379,7 +383,9 @@ function BlogPost(props: PostProps){
         if(!dbLoaded && post){
             getData(post.id);
         }
-    }, [post, dbLoaded]);
+
+        warnIfUnsaved(editing || editingId || post.awaiting_save);
+    }, [post, dbLoaded, editing, editingId]);
 
     return (
         <div
@@ -472,9 +478,9 @@ function BlogPost(props: PostProps){
                     onClick={async () => {
                         if(post.awaiting_save){
                             props.removePost();
+                            window.onbeforeunload = null;
                         }else{
                             const doc = await db.posts.doc(post.id).get();
-                            db.posts
                             props.setPost(_currentPost => doc.data());
                         }
 

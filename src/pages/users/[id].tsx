@@ -5,7 +5,7 @@ import Tag from '../../lib/components/Tag';
 import Button, { OutlineButton, Cta } from '../../lib/components/Button';
 import { Authorization } from '../../lib/authorization';
 import db, { User, FileCollection, Permission } from '../../lib/db';
-import { classNames } from '../../lib/util';
+import { classNames, loadStarted, warnIfUnsaved } from '../../lib/util';
 import { MdEdit, MdClose, MdCheck, MdPersonAdd, MdAdd } from 'react-icons/md';
 import { useSession } from 'next-auth/client';
 import { useRouter } from 'next/router';
@@ -56,6 +56,8 @@ export default function Profile(){
     async function getData(uid: string, userOnly?: boolean){
         if(uid){
             try {
+                setDbLoaded(null);
+
                 const doc = await db.users.doc(uid).get();
 
                 if(doc.exists){
@@ -96,6 +98,8 @@ export default function Profile(){
 
     async function getDriveData(client){
         try {
+            setDriveLoaded(null);
+
             const drive = await db.drive(client);
             const updated = await Promise.all(collections.map(async collection => {
                 const [driveCollection] = await drive.file_collections.load([collection, []]);
@@ -110,14 +114,16 @@ export default function Profile(){
     }
 
     useEffect(() => {
-        if(!dbLoaded){
+        if(!loadStarted(dbLoaded)){
             getData(id as string, dbLoaded == null);
         }
 
-        if(dbLoaded && !driveLoaded && apisLoaded){
+        if(dbLoaded && !loadStarted(driveLoaded) && apisLoaded){
             getDriveData(window.gapi.client);
         }
-    }, [id, dbLoaded, apisLoaded, driveLoaded]);
+
+        warnIfUnsaved(editing || saveDisabled);
+    }, [id, dbLoaded, apisLoaded, driveLoaded, editing, saveDisabled]);
 
     return (
         <Layout

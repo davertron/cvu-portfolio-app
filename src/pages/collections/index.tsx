@@ -3,7 +3,7 @@ import Layout from '../../lib/components/Layout';
 import Error from '../../lib/components/Error';
 import Button, { Cta } from '../../lib/components/Button';
 import db, { User, FileCollection } from '../../lib/db';
-import { merge } from '../../lib/util';
+import { loadStarted, merge } from '../../lib/util';
 import { useSession } from 'next-auth/client';
 import { useState, useEffect } from 'react';
 import { MdOpenInNew, MdAdd, MdClose } from 'react-icons/md';
@@ -24,6 +24,8 @@ export default function Collection(){
 
     async function getData(){
         try {
+            setDbLoaded(null);
+
             const userSnapshot = await db.users.doc(session.user.id).get();
             const dbUser = userSnapshot.data();
 
@@ -55,6 +57,8 @@ export default function Collection(){
 
     async function getDriveData(client){
         try {
+            setDriveLoaded(null);
+
             const drive = await db.drive(client);
             const updated = await Promise.all(collections.map(async collection => {
                 const [driveCollection] = await drive.file_collections.load([collection, []]);
@@ -100,11 +104,11 @@ export default function Collection(){
     }
 
     useEffect(() => {
-        if(!loading && !dbLoaded){
+        if(!loading && !loadStarted(dbLoaded)){
             getData();
         }
 
-        if(dbLoaded && !driveLoaded && apisLoaded){
+        if(dbLoaded && !loadStarted(driveLoaded) && apisLoaded){
             getDriveData(window.gapi.client);
         }
     }, [loading, dbLoaded, driveLoaded, apisLoaded]);
