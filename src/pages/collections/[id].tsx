@@ -1,31 +1,31 @@
 import { Authorization } from '../../lib/authorization';
 import Layout from '../../lib/components/Layout';
 import Input, { StateSetter } from '../../lib/components/Input';
-import Button, { Cta } from '../../lib/components/Button';
+import Button, { OutlineButton, Cta } from '../../lib/components/Button';
 import Picker from '../../lib/components/Picker';
 import Error from '../../lib/components/Error';
-import db, { id as dbid, FileCollection, Artifact, User } from '../../lib/db';
+import db, { FileCollection, Artifact, User } from '../../lib/db';
 import { classNames } from '../../lib/util';
 import { Interactive } from '../../lib/components/types';
 import { useSession } from 'next-auth/client';
 import { useRouter } from 'next/router';
 import { useState, useEffect } from 'react';
-import { MdCloudUpload, MdClose, MdDoneAll, MdEdit, MdOpenInNew, MdStar, MdStarBorder } from 'react-icons/md';
+import { MdCloudUpload, MdClose, MdDoneAll, MdEdit, MdOpenInNew } from 'react-icons/md';
+import { AiFillPushpin, AiOutlinePushpin } from 'react-icons/ai';
 import { CgFeed } from 'react-icons/cg';
 import NProgress from 'nprogress';
 
 interface CollectionProps {
     creating?: boolean
+    authorization?: Authorization
 }
 
 export default function Collection(props: CollectionProps){
     const [session, loading] = useSession();
 
-    const [collection, setCollection] = useState({
-        title: ''
-    } as FileCollection);
+    const [collection, setCollection] = useState(new FileCollection({}));
     const [artifacts, setArtifacts] = useState([] as Artifact[]);
-    const [user, setUser] = useState({} as User);
+    const [user, setUser] = useState(new User({}));
 
     const [editing, setEditing] = useState(false);
     const [saveDisabled, setSaveDisabled] = useState(false);
@@ -57,7 +57,7 @@ export default function Collection(props: CollectionProps){
 
     async function getData(cid?: string){
         try {
-            let dbUser = {};
+            let dbUser = new User({});
 
             if(cid){
                 const snapshot = await db.file_collections.doc(cid).get();
@@ -80,9 +80,8 @@ export default function Collection(props: CollectionProps){
                 dbUser = userSnapshot.data();
             }
 
-            setDbLoaded(true);
             setUser(dbUser);
-
+            setDbLoaded(true);
         }catch(_e){
             setError('There was an error loading collection ' + id);
         }
@@ -116,19 +115,14 @@ export default function Collection(props: CollectionProps){
                 artifacts
             ]);
 
+            driveCollection.concat({author_id: session.user.id});
+
             if(props.creating){
-                const collectionId = dbid();
-                await db.file_collections.doc(collectionId).set({
-                    drive_id: driveCollection.drive_id,
-                    author_id: session.user.id
-                });
+                await db.file_collections.doc(driveCollection.id).set(driveCollection);
 
                 await Promise.all(
                     driveArtifacts.map(async artifact => {
-                        await db.artifacts(collectionId).doc(artifact.id).set({
-                            drive_id: artifact.drive_id,
-                            shortcut_id: artifact.shortcut_id
-                        });
+                        await db.artifacts(driveCollection.id).doc(artifact.id).set(artifact);
                     })
                 );
 
@@ -136,23 +130,19 @@ export default function Collection(props: CollectionProps){
                     async permission => await drive.file_collections.share([driveCollection, driveArtifacts], permission)
                 ));
 
-                db.users.doc(session.user.id).set({
-                    ...user,
+                db.users.doc(session.user.id).set(user.with({
                     shared_with: driveSharedWith
-                });
-                setUser(currentUser => ({...currentUser, shared_with: driveSharedWith}));
+                }));
+                setUser(currentUser => currentUser.with({shared_with: driveSharedWith}));
 
                 setArtifacts([]);
-                setCollection({title: ''});
+                setCollection(new FileCollection({}));
                 setSaveDisabled(false);
                 NProgress.done();
 
-                router.push('/collections/' + collectionId);
+                router.push('/collections/' + driveCollection.id);
             }else{
-                db.file_collections.doc(id as string).set({
-                    drive_id: driveCollection.drive_id,
-                    author_id: session.user.id
-                });
+                db.file_collections.doc(id as string).set(driveCollection);
 
                 driveArtifacts.map(artifact => {
                     const doc = db.artifacts(id as string).doc(artifact.id);
@@ -160,10 +150,7 @@ export default function Collection(props: CollectionProps){
                     if(artifact.awaiting_delete){
                         doc.delete();
                     }else{
-                        doc.set({
-                            drive_id: artifact.drive_id,
-                            shortcut_id: artifact.shortcut_id
-                        });
+                        doc.set(artifact);
                     }
                 });
 
@@ -193,8 +180,9 @@ export default function Collection(props: CollectionProps){
 
     return (
         <Layout
-            authorization={Authorization.SHARED}
+            authorization={props.authorization || Authorization.SHARED}
             author={user}
+            authorLoaded={dbLoaded}
             gapis={['picker']}
             onGapisLoad={() => setApisLoaded(true)}
             noPadding
@@ -242,10 +230,10 @@ export default function Collection(props: CollectionProps){
                                                 const doc = picked.docs[i];
 
                                                 if(artifacts.filter(a => a.drive_id == doc.id).length == 0){ // Make sure document is not a duplicate
-                                                    let artifact: Artifact = {drive_id: doc.id};
+                                                    let artifact = new Artifact({drive_id: doc.id});
                                                     artifact = await drive.artifacts.load(artifact);
 
-                                                    updated.push({...artifact, id: dbid()});
+                                                    updated.push(artifact);
                                                 }
                                             }
 
@@ -292,41 +280,35 @@ export default function Collection(props: CollectionProps){
                         <div className="w-full py-4 fixed bottom-0 border border-top flex flex-row justify-center z-10 bg-white">
                             {showInputs ?
                                 <>
-                                    {validate(collection, artifacts) && <Cta
+                                    <Cta
+                                        disabled={saveDisabled || !validate(collection, artifacts)}
                                         onClick={() => save(window.gapi.client)}
+                                        icon={<MdDoneAll/>}
                                         className="mx-2"
-                                        icon={<MdDoneAll/>}
                                     >
                                         Save
-                                    </Cta>}
-                                    {saveDisabled || !validate(collection, artifacts) && <Cta
-                                        className="bg-gray-200 text-gray-400 cursor-default"
-                                        customBg
-                                        customFont
-                                        icon={<MdDoneAll/>}
-                                    >
-                                        Save
-                                    </Cta>}
-                                    {(!props.creating && !saveDisabled) && <Button
+                                    </Cta>
+                                    {(!props.creating && !saveDisabled) && <OutlineButton
+                                        color="indigo-500"
                                         onClick={() => {
                                             setEditing(false);
                                             setDbLoaded(false);
                                             setDriveLoaded(false);
                                         }}
                                         icon={<MdClose/>}
-                                        className="border border-indigo-500 text-indigo-500 hover:text-white hover:bg-indigo-500 mx-2"
+                                        className="mx-2"
                                     >
                                         Cancel
-                                    </Button>}
+                                    </OutlineButton>}
                                 </>
                                 :
-                                <Button
+                                <OutlineButton
+                                    color="indigo-500"
                                     onClick={() => setEditing(true)}
                                     icon={<MdEdit/>}
-                                    className="border border-indigo-500 text-indigo-500 hover:text-white hover:bg-indigo-500"
                                 >
                                     Edit
-                                </Button>
+                                </OutlineButton>
                             }
                         </div>
                     }
@@ -407,7 +389,7 @@ function CollectionArtifact(props: ArtifactProps){
                                         onClick={() => setPinned(currentPinned => !currentPinned)}
                                         customPadding
                                     >
-                                        {pinned ? <MdStar/> : <MdStarBorder/>}
+                                        {pinned ? <AiFillPushpin/> : <AiOutlinePushpin/>}
                                     </Button>
                                 </>
                             }

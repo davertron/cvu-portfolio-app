@@ -1,3 +1,4 @@
+import 'reflect-metadata';
 import { v4 as uuidv4 } from 'uuid';
 import { getSession } from 'next-auth/client';
 
@@ -5,11 +6,78 @@ import firebase from 'firebase/app';
 import 'firebase/firestore';
 import 'firebase/storage';
 
-// Schema definitions
-// Note: most of the attributes here are optional because the objects passed to functions like doc.set({...}) must match schema types, but will not necessarily contain all fields
+// Annotation to prevent field from being saved to Firestore
+function NonSerializable(target, propertyKey){
+    Reflect.defineMetadata('isNonSerializable', true, target, propertyKey);
+}
 
-export interface Model {
-    id?: string
+function isNonSerializable<T>(instance: T, propertyKey: string){
+    return !!Reflect.getMetadata('isNonSerializable', instance, propertyKey);
+}
+
+// Annotation to prevent field from being returned by Firestore
+function Hidden(target, propertyKey){
+    Reflect.defineMetadata('Hidden', true, target, propertyKey);
+}
+
+function isHidden<T>(instance: T, propertyKey: string){
+    return !!Reflect.getMetadata('Hidden', instance, propertyKey);
+}
+
+// db-specific utils/types
+export type Timestamp = firebase.firestore.Timestamp;
+export const dbid = () => uuidv4();
+export const now = () => firebase.firestore.Timestamp.now();
+
+// Schema definitions
+
+type AnyObject = {[key: string]: any};
+
+export class Model {
+    @NonSerializable
+    id?: string = dbid();
+
+    // Creates a new model instance to force re-render in setState methods
+    protected newInstance() : this {
+        return Object.assign(Object.create(Object.getPrototypeOf(this)), this);
+    }
+
+    serialize() : AnyObject {
+        let serialized: AnyObject = {};
+
+        for(let key in this){
+            if(!isNonSerializable(this, key)){
+                let val: AnyObject = this[key];
+
+                if(Array.isArray(val)){
+                    const arr = [];
+                    for(let elem of val){
+                        if(elem instanceof Model) elem = elem.serialize();
+                        arr.push(elem);
+                    }
+
+                    val = arr;
+                }else if(val instanceof Model){
+                    val = val.serialize();
+                }
+
+                serialized[key] = val;
+            }
+        }
+
+        return serialized;
+    }
+
+    // Equivalent to {...this, ...params} in standard objects
+    concat(params: Partial<Model>){
+        Object.assign(this, params);
+    }
+
+    // Same as concat but returns a new model instance to force re-render
+    with(params: Partial<Model>) : this {
+        this.concat(params);
+        return this.newInstance();
+    }
 }
 
 export enum UserRole {
@@ -18,56 +86,173 @@ export enum UserRole {
     ADMIN = 'ADMIN'
 }
 
-export interface Permission {
-    email: string
-    drive_permissions: Map<string, string>
-    awaiting_delete?: boolean
+export class Permission extends Model {
+    email: string;
+    drive_permissions?: Map<string, string> = {} as Map<string, string>;
+
+    // Temporary field to indicate permission needs to be cleared
+    @NonSerializable
+    awaiting_delete?: boolean;
+
+    concat(params: Partial<Permission>){
+        super.concat(params);
+    }
+
+    with(params: Partial<Permission>) : this {
+        return super.with(params);
+    }
+
+    constructor(params: Partial<Permission>){
+        super();
+        this.concat(params);
+    }
 }
 
-export interface User extends Model {
-    email?: string
-    name?: string
-    bio_pic?: string
-    bio?: string
-    role?: UserRole
-    shared_with?: Permission[]
-    shared_with_email?: string[]
+export class User extends Model {
+    email: string;
+    name: string;
+    bio_pic: string;
+    bio?: string = '';
+    role?: UserRole = UserRole.STUDENT;
+    shared_with?: Permission[] = [];
+    shared_with_email?: string[] = [];
+
+    serialize() : AnyObject {
+        if(this.shared_with){
+            // Auto-generate index array for easier queries
+            this.shared_with_email = this.shared_with.map(permission => permission.email);
+        }
+
+        return super.serialize();
+    }
+
+    concat(params: Partial<User>){
+        super.concat(params);
+    }
+
+    with(params: Partial<User>) : this {
+        return super.with(params);
+    }
+
+    constructor(params: Partial<User>){
+        super();
+        this.concat(params);
+    }
 }
 
-export interface FileCollection extends Model {
-    drive_id?: string
-    title?: string
-    author_id?: string
-    web_view?: string
+export class FileCollection extends Model {
+    drive_id: string;
+    author_id: string;
+
+    @NonSerializable
+    title?: string = '';
+    @NonSerializable
+    web_view: string;
+
+    concat(params: Partial<FileCollection>){
+        super.concat(params);
+    }
+
+    with(params: Partial<FileCollection>) : this {
+        return super.with(params);
+    }
+
+    constructor(params: Partial<FileCollection>){
+        super();
+        this.concat(params);
+    }
 }
 
-export interface Artifact extends Model {
-    drive_id?: string
-    shortcut_id?: string
-    title?: string
-    description?: string
-    icon?: string
-    thumbnail?: string
-    web_view?: string
+export class Artifact extends Model {
+    drive_id: string;
+    shortcut_id: string;
+
+    @NonSerializable
+    title: string;
+    @NonSerializable
+    icon: string;
+    @NonSerializable
+    thumbnail: string;
+    @NonSerializable
+    web_view: string;
+    @NonSerializable
+    description?: string = '';
+
     // Temporary field to indicate the artifact needs to be deleted
-    awaiting_delete?: boolean
+    @NonSerializable
+    awaiting_delete?: boolean;
+
+    concat(params: Partial<Artifact>){
+        super.concat(params);
+    }
+
+    with(params: Partial<Artifact>) : this {
+        return super.with(params);
+    }
+
+    constructor(params: Partial<Artifact>){
+        super();
+        this.concat(params);
+    }
 }
 
-export interface Post extends Model {
-    title?: string
-    body?: string
-    created_at?: firebase.firestore.Timestamp
-    author_id?: string
-    tags?: string[]
+export class Post extends Model {
+
+    created_at: Timestamp;
+    author_id: string;
+    title?: string = '';
+    body?: string = '';
+    tags?: string[] = [];
+    likes?: string[] = [];
+
     // Temporary field to indicate the post hasn't been saved
+    @NonSerializable
     awaiting_save?: boolean
+
+    concat(params: Partial<Post>){
+        super.concat(params);
+    }
+
+    with(params: Partial<Post>) : this {
+        return super.with(params);
+    }
+
+    constructor(params: Partial<Post>){
+        super();
+        this.concat(params);
+    }
+
 }
 
-export interface Comment extends Model {
-    body?: string
-    author_id?: string
-    awaiting_save?: boolean
+export class Comment extends Model {
+    author_id: string;
+    created_at: Timestamp;
+    body?: string = '';
+
+    // Temporary field to indicate the comment hasn't been saved
+    @NonSerializable
+    awaiting_save?: boolean;
+
+    serialize() : AnyObject {
+        const serialized = super.serialize();
+        console.log(serialized)
+        return serialized;
+    }
+
+    concat(params: Partial<Comment>){
+        super.concat(params);
+    }
+
+    with(params: Partial<Comment>) : this {
+        return super.with(params);
+    }
+
+    constructor(params: Partial<Comment>){
+        super();
+        this.concat(params);
+    }
 }
+
 
 const app = firebase.apps.length? firebase.apps[0] : firebase.initializeApp({
     apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -78,26 +263,14 @@ const app = firebase.apps.length? firebase.apps[0] : firebase.initializeApp({
     appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 });
 
-type ConverterPlugin<T extends Model> = (obj: T) => T;
-type ConverterPlugins<T extends Model> = {toFirestorePlugin: ConverterPlugin<T>, fromFirestorePlugin?: ConverterPlugin<T>};
+class Converter<Schema extends Model> {
+    constructor(private SchemaType){ }
 
-class Converter<T extends Model> {
-
-    toFirestorePlugin: ConverterPlugin<T>
-    fromFirestorePlugin: ConverterPlugin<T>
-
-    constructor(plugins?: ConverterPlugins<T>){
-        if(plugins) Object.assign(this, plugins);
-    }
-
-    toFirestore = (data: T) => {
-        return this.toFirestorePlugin ? this.toFirestorePlugin(data) : data
-    }
-
-    fromFirestore = (snapshot: firebase.firestore.QueryDocumentSnapshot) => {
-        const data = {...snapshot.data(), id: snapshot.id} as T;
-        return this.fromFirestorePlugin ? this.fromFirestorePlugin(data) : data;
-    }
+    toFirestore = (instance: Schema) => instance.serialize();
+    fromFirestore = (snapshot: firebase.firestore.QueryDocumentSnapshot) : Schema => new this.SchemaType({
+        ...snapshot.data(),
+        id: snapshot.id
+    });
 }
 
 class CollectionFactory {
@@ -107,8 +280,8 @@ class CollectionFactory {
         this.store = store;
     }
 
-    new<Schema extends Model>(name: string, plugins?: ConverterPlugins<Schema>){
-        const converter = new Converter<Schema>(plugins);
+    new<Schema extends Model>(name: string, SchemaType){
+        const converter = new Converter<Schema>(SchemaType);
         return this.store.collection(name).withConverter(converter);
     }
 }
@@ -117,17 +290,17 @@ const store = app.firestore();
 const bucket = app.storage().ref();
 const cf = new CollectionFactory(store);
 
-type CollectionReference = firebase.firestore.CollectionReference;
-type CollectionChild = (parentId: string) => CollectionReference;
+type CollectionReference<T extends Model> = firebase.firestore.CollectionReference<T>;
+type CollectionChild<T extends Model> = (parentId: string) => CollectionReference<T>;
 type DriveReference = (client: any) => Promise<DriveDB>;
 type BucketReference = (filename: string) => firebase.storage.Reference;
 
 interface Db {
-    users: CollectionReference,
-    file_collections: CollectionReference,
-    posts: CollectionReference,
-    comments: CollectionChild
-    artifacts: CollectionChild,
+    users: CollectionReference<User>,
+    file_collections: CollectionReference<FileCollection>,
+    posts: firebase.firestore.CollectionReference<Post>,
+    comments: CollectionChild<Comment>,
+    artifacts: CollectionChild<Artifact>,
 
     storage: BucketReference,
     avatars: BucketReference,
@@ -137,20 +310,11 @@ interface Db {
 
 let db: Db = {
     // Firestore collections
-    users: cf.new<User>('users', {
-        // Auto-generate index array for easier queries
-        toFirestorePlugin: user => ({
-            ...user,
-            shared_with_email: user.shared_with ?
-                user.shared_with.map(p => p.email)
-                :
-                []
-        })
-    }),
-    file_collections: cf.new<FileCollection>('file_collections'),
-    posts: cf.new<Post>('posts'),
-    comments: (postId: string) => cf.new<Comment>('posts/' + postId + '/comments'),
-    artifacts: (collectionId: string) => cf.new<Artifact>('file_collections/' + collectionId + '/artifacts'),
+    users: cf.new<User>('users', User),
+    file_collections: cf.new<FileCollection>('file_collections', FileCollection),
+    posts: cf.new<Post>('posts', Post),
+    comments: (postId: string) => cf.new<Comment>('posts/' + postId + '/comments', Comment),
+    artifacts: (collectionId: string) => cf.new<Artifact>('file_collections/' + collectionId + '/artifacts', Artifact),
 
     // File storage bucket
     storage: (filename: string) => bucket.child(filename),
@@ -170,7 +334,6 @@ interface DriveHandler<T> {
 
 // Handles drive-based schema attributes
 class DriveDB {
-
     client;
 
     constructor(client, token: string){
@@ -214,17 +377,16 @@ class DriveDB {
             const metadata = snapshot.result;
 
             if(metadata){
-                return {
-                    ...artifact,
+                return artifact.with({
                     title: metadata.name,
                     icon: metadata.iconLink,
                     thumbnail: metadata.thumbnailLink,
                     web_view: metadata.webViewLink,
                     description: metadata.description || ''
-                };
-            }else{
-                return artifact;
+                });
             }
+
+            return artifact;
         },
 
         save: async (artifact: Artifact, collection_drive_id?: string) => {
@@ -250,16 +412,15 @@ class DriveDB {
                         fields: 'id'
                     });
 
-                    artifact.shortcut_id = snapshot.result.id;
+                    artifact = artifact.with({shortcut_id: snapshot.result.id});
                 }
             }
 
             return artifact;
         },
 
-        remove: async (artifact: Artifact) => {
-            artifact.awaiting_delete = true;
-            await this.artifacts.save(artifact);
+        remove: async(artifact: Artifact) => {
+            await this.artifacts.save(artifact.with({awaiting_delete: true}));
         },
 
     };
@@ -300,14 +461,17 @@ class DriveDB {
             });
             const metadata = snapshot.result;
 
-            collection.title = metadata.name;
-            collection.web_view = metadata.webViewLink;
-
             artifacts = await Promise.all(artifacts.map(
                 async artifact => await this.artifacts.load(artifact)
             ));
 
-            return [collection, artifacts];
+            return [
+                collection.with({
+                    title: metadata.name,
+                    web_view: metadata.webViewLink
+                }),
+                artifacts
+            ];
         },
 
         remove: async ([collection, artifacts]: [FileCollection, Artifact[]]) => {
@@ -367,10 +531,5 @@ class DriveDB {
 
 // Virtual (not directly loaded from db) model fields
 db.drive = async client => await DriveDB.init(client);
-
-// db-specific utils
-export type Timestamp = firebase.firestore.Timestamp;
-export const id = () => uuidv4();
-export const now = () => firebase.firestore.Timestamp.now();
 
 export default db;

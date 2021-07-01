@@ -1,19 +1,20 @@
 import Layout from '../../lib/components/Layout';
 import Input, { StateSetter } from '../../lib/components/Input';
-import Button, { Cta } from '../../lib/components/Button';
+import Button, { OutlineButton, Cta } from '../../lib/components/Button';
 import Error from '../../lib/components/Error';
 import Tag from '../../lib/components/Tag';
 import { Authorization } from '../../lib/authorization';
-import { dateString, classNames, valueOf } from '../../lib/util';
-import db, { id as dbid, now, Post, FileCollection, User, Comment } from '../../lib/db';
+import { dateString, classNames, createdAt } from '../../lib/util';
+import db, { now, Post, FileCollection, User, Comment } from '../../lib/db';
 import { useSession } from 'next-auth/client';
 import { useEffect, useState } from 'react';
-import { MdAdd, MdSearch, MdClose, MdDone, MdEdit, MdChatBubbleOutline, MdFavorite, MdFavoriteBorder, MdExpandMore, MdExpandLess } from 'react-icons/md';
+import { MdAdd, MdSearch, MdClose, MdDone, MdEdit, MdChatBubbleOutline, MdFavorite, MdFavoriteBorder, MdExpandLess, MdMoreHoriz } from 'react-icons/md';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 
 interface BlogProps {
-    uid?: boolean
+    uid?: string;
+    authorization?: Authorization;
 }
 
 export default function Blog(props: BlogProps){
@@ -21,11 +22,10 @@ export default function Blog(props: BlogProps){
     const router = useRouter();
 
     const [posts, setPosts] = useState([] as Post[]);
-    const [comments, setComments] = useState(new Map() as Map<string, Comment[]>)
-    const [collections, setCollections] = useState({} as Map<string, FileCollection>);
+    const [collections, setCollections] = useState(new Map() as Map<string, FileCollection>);
     const [search, setSearch] = useState({term: ''});
     const [filters, setFilters] = useState([] as string[]);
-    const [user, setUser] = useState({} as User);
+    const [user, setUser] = useState(new User({}));
 
     const [error, setError] = useState(null);
 
@@ -47,7 +47,7 @@ export default function Blog(props: BlogProps){
         }
     }
     const setPost = (pid: string) => {
-        return (cb: StateSetter) => {
+        return (cb: StateSetter<Post>) => {
             setPosts(currentPosts => currentPosts.map(post => post.id == pid ? cb(post) : post));
         }
     }
@@ -108,29 +108,31 @@ export default function Blog(props: BlogProps){
 
     async function getData(){
         try {
-            const userSnapshot = await db.users.doc(uid as string).get();
-            const dbUser = userSnapshot.data();
+            if(uid){
+                const userSnapshot = await db.users.doc(uid as string).get();
+                const dbUser = userSnapshot.data();
 
-            const postsSnapshot = await db.posts.where('author_id', '==', uid).get();
-            const dbPosts = postsSnapshot.docs.map(doc => doc.data());
-            let dbComments = new Map();
+                const postsSnapshot = await db.posts.where('author_id', '==', uid).get();
+                const dbPosts = postsSnapshot.docs.map(doc => doc.data());
+                let dbComments = new Map();
 
-            for(let post of dbPosts){
-                const commentsSnapshot = await db.comments(post.id).get();
-                dbComments[post.id] = commentsSnapshot.docs.map(doc => doc.data());
+                for(let post of dbPosts){
+                    const commentsSnapshot = await db.comments(post.id).get();
+                    dbComments[post.id] = commentsSnapshot.docs.map(doc => doc.data());
+                }
+
+                const collectionsSnapshot = await db.file_collections.where('author_id', '==', uid).get();
+                let dbCollections = new Map();
+
+                for(let collection of collectionsSnapshot.docs.map(doc => doc.data())){
+                    dbCollections[collection.id] = collection;
+                }
+
+                setCollections(dbCollections);
+                setPosts(dbPosts);
+                setUser(dbUser);
+                setDbLoaded(true);
             }
-
-            const collectionsSnapshot = await db.file_collections.where('author_id', '==', uid).get();
-            let dbCollections = new Map();
-
-            for(let collection of collectionsSnapshot.docs.map(doc => doc.data())){
-                dbCollections[collection.id] = collection;
-            }
-
-            setCollections(dbCollections);
-            setPosts(dbPosts);
-            setUser(dbUser);
-            setDbLoaded(true);
         }catch(_e){
             setError('There was an error loading posts');
         }
@@ -155,12 +157,12 @@ export default function Blog(props: BlogProps){
             setCollections(collectionMap);
             setDriveLoaded(true);
         }catch(_e){
-            setError('There was an error syncing with drive');
+            setError('There was an error syncing with Google Drive');
         }
     }
 
     useEffect(() => {
-        if(!loading && session && !dbLoaded){
+        if(!loading && !dbLoaded){
             getData();
         }
 
@@ -188,8 +190,9 @@ export default function Blog(props: BlogProps){
 
     return (
         <Layout
-            authorization={Authorization.SHARED}
+            authorization={props.authorization || Authorization.SHARED}
             author={user}
+            authorLoaded={dbLoaded}
             gapis={[]}
             onGapisLoad={() => setApisLoaded(true)}
             noPadding
@@ -222,7 +225,10 @@ export default function Blog(props: BlogProps){
                         id="search-input"
                         className="bg-gray-100 bg-opacity-10 placeholder-gray-200 h-11 px-3 focus:bg-opacity-20"
                         name="term"
-                        setForm={setSearch}
+                        onInput={e => setSearch(currentSearch => ({
+                            ...currentSearch,
+                            term: e.target.value
+                        }))}
                         value={search.term}
                         onFocus={() => setSearchFocused(true)}
                         onBlur={() => setSearchFocused(false)}
@@ -255,18 +261,13 @@ export default function Blog(props: BlogProps){
                     {(search.term.trim() == '' && filters.length == 0 && posts.filter(post => post.awaiting_save).length == 0 && owned) &&
                         <Cta
                             className="mb-10 text-center self-stretch flex items-center justify-center bg-gray-100 text-gray-500 hover:bg-indigo-500 hover:text-white py-3"
-                            onClick={() => {
-                                const post = {
-                                    id: dbid(),
-                                    title: '',
-                                    body: '',
-                                    tags: [],
+                            onClick={() => setPosts(currentPosts => [
+                                ...currentPosts,
+                                new Post({
                                     author_id: session.user.id,
                                     awaiting_save: true
-                                };
-
-                                setPosts(currentPosts => [...currentPosts, post]);
-                            }}
+                                })
+                            ])}
                             customPadding
                             customBg
                         >
@@ -276,9 +277,7 @@ export default function Blog(props: BlogProps){
                     {search.term.trim() == '' ?
                         [
                             ...posts.filter(p => p.awaiting_save).map(renderPost),
-                            ...posts.filter(p => !p.awaiting_save).sort((a,b) => (
-                                (a.created_at && b.created_at) ?  valueOf(b.created_at) - valueOf(a.created_at) : 0
-                            )).filter(matchFilters(filters)).map(renderPost)
+                            ...posts.filter(p => !p.awaiting_save).sort(createdAt).filter(matchFilters(filters)).map(renderPost)
                         ]
                         :
                         searchResults.length > 0 ? searchResults.filter(matchFilters(filters)).map(renderPost) : <p className="text-gray-500">No posts matching "{search.term}"</p>
@@ -324,7 +323,7 @@ export default function Blog(props: BlogProps){
 
 interface PostProps {
     post: Post
-    setPost: (cb: StateSetter) => void
+    setPost: (cb: StateSetter<Post>) => void
     removePost: () => void
     collections: Map<string, FileCollection>
     validate: (post: Post) => boolean
@@ -339,15 +338,18 @@ function BlogPost(props: PostProps){
     const [users, setUsers] = useState(new Map() as Map<string, User>);
 
     const [editing, setEditing] = useState(!props.locked && props.editing);
+    const [editingId, setEditingId] = useState(null);
     const [expand, setExpand] = useState(false);
     const [dbLoaded, setDbLoaded] = useState(false);
 
     const post = props.post;
     const setComment = (cid: string) => {
-        return (cb: StateSetter) => {
+        return (cb: StateSetter<Comment>) => {
             setComments(currentComments => currentComments.map(c => c.id == cid ? cb(c) : c));
         }
     }
+
+    const validate = (comment: Comment) => comment.body && comment.body.trim() != '';
 
     async function getData(pid: string){
         const commentSnapshot = await db.comments(pid).get();
@@ -396,38 +398,6 @@ function BlogPost(props: PostProps){
                             <h1 className="text-xl font-bold">{post.title}</h1>
                             <p className="text-gray-400 mt-2">{dateString(post.created_at)}</p>
                         </div>
-                        {!(props.locked || editing) && <div className="flex flex-col items-end text-sm">
-                            <Button onClick={() => setExpand(!expand)} className="text-right text-lg mb-2" customPadding>
-                                {expand ?
-                                    <MdExpandLess/>
-                                    :
-                                    <MdExpandMore/>
-                                }
-                            </Button>
-                            {expand &&
-                                <div className="shadow p-1 w-28">
-                                    <Button
-                                        className="border border-indigo-500 text-indigo-500 hover:text-white hover:bg-indigo-500 w-full my-1"
-                                        onClick={() => setEditing(true)}
-                                        icon={<MdEdit/>}
-                                    >
-                                        Edit
-                                    </Button>
-                                    <Button
-                                        className="text-red-700 border border-red-700 hover:text-white hover:bg-red-700 w-full my-1"
-                                        onClick={() => {
-                                            if(confirm(`Are you sure you want to delete post "${post.title}"?`)){
-                                                db.posts.doc(post.id).delete();
-                                                props.removePost();
-                                            }
-                                        }}
-                                        icon={<MdClose/>}
-                                    >
-                                        Delete
-                                    </Button>
-                                </div>
-                            }
-                        </div>}
                     </div>
                 }
             </div>
@@ -450,13 +420,11 @@ function BlogPost(props: PostProps){
                                     className="my-2 mr-4"
                                     onClick={selected => {
                                         if(selected){
-                                            props.setPost((currentPost: Post) => ({
-                                                ...currentPost,
+                                            props.setPost(currentPost => currentPost.with({
                                                 tags: [...currentPost.tags, cid]
                                             }));
                                         }else{
-                                            props.setPost((currentPost: Post) => ({
-                                                ...currentPost,
+                                            props.setPost(currentPost => currentPost.with({
                                                 tags: currentPost.tags.filter(tag => tag != cid)
                                             }));
                                         }
@@ -477,45 +445,36 @@ function BlogPost(props: PostProps){
                 </>
             }
             {editing && <div className="mb-4 mt-6 flex">
-                {props.validate(post) ?
-                    <Cta
-                        className="mr-4"
-                        icon={<MdDone/>}
-                        onClick={() => {
-                            const created_at = now();
+                <Cta
+                    className="mr-4"
+                    disabled={!props.validate(post)}
+                    icon={<MdDone/>}
+                    onClick={() => {
+                        const created_at = now();
 
-                            if(post.awaiting_save){
-                                props.setPost((currentPost: Post) => ({
-                                    ...currentPost,
-                                    awaiting_save: false,
-                                    created_at
-                                }));
-                            }
-
-                            setEditing(false);
-
-                            db.posts.doc(post.id).set({
-                                title: post.title,
-                                body: post.body,
-                                author_id: post.author_id,
-                                tags: post.tags,
+                        if(post.awaiting_save){
+                            props.setPost(currentPost => currentPost.with({
+                                awaiting_save: false,
                                 created_at
-                            });
-                        }}
-                    >
-                        Save
-                    </Cta>
-                    :
-                    <Cta className="bg-gray-200 text-gray-400 cursor-default mr-4" customBg customFont icon={<MdDone/>}>Save</Cta>
-                }
-                <Button
-                    className="text-indigo-500 border border-indigo-500 hover:text-white hover:bg-indigo-500"
+                            }));
+                        }
+
+                        setEditing(false);
+
+                        db.posts.doc(post.id).set(post);
+                    }}
+                >
+                    Save
+                </Cta>
+                <OutlineButton
+                    color="indigo-500"
                     icon={<MdClose/>}
                     onClick={async () => {
                         if(post.awaiting_save){
                             props.removePost();
                         }else{
                             const doc = await db.posts.doc(post.id).get();
+                            db.posts
                             props.setPost(_currentPost => doc.data());
                         }
 
@@ -523,45 +482,181 @@ function BlogPost(props: PostProps){
                     }}
                 >
                     Cancel
-                </Button>
+                </OutlineButton>
             </div>}
-            {comments.length > 0 || props.locked && <div className="my-3">
-                {comments.map(comment => {
-                    const showInputs = comment.awaiting_save;
+            {!(editing || props.locked) &&
+                <div className="flex flex-col mt-2">
+                    <Button onClick={() => setExpand(!expand)} className="text-right text-lg mb-2" customPadding>
+                        {expand ?
+                            <MdExpandLess/>
+                            :
+                            <MdMoreHoriz/>
+                        }
+                    </Button>
+                    {expand &&
+                        <div className="flex mt-1 mb-3">
+                            <OutlineButton
+                                color="indigo-500"
+                                className="mr-4"
+                                onClick={() => {
+                                    setEditing(true);
+                                    setExpand(false);
+                                }}
+                                icon={<MdEdit/>}
+                            >
+                                Edit
+                            </OutlineButton>
+                            <OutlineButton
+                                color="red-700"
+                                onClick={() => {
+                                    if(confirm(`Are you sure you want to delete post "${post.title}"?`)){
+                                        db.posts.doc(post.id).delete();
+                                        props.removePost();
+                                    }
+                                }}
+                                icon={<MdClose/>}
+                            >
+                                Delete
+                            </OutlineButton>
+                        </div>
+                    }
+                </div>
+            }
+            {(comments.length > 0 || props.locked) && <div className="mt-3 mb-1">
+                {comments.sort(createdAt).map(comment => {
+                    const showInputs = (comment.awaiting_save || editingId == comment.id) && comment.author_id == session.user.id;
+                    const author = users[comment.author_id] || {};
 
                     return (
-                        <div className="flex">
-
-                            <div className="flex-grow">
+                        <div className="flex py-3" key={comment.id}>
+                            <div
+                                className="rounded-full h-10 w-10 flex-shrink-0 bg-cover"
+                                style={{backgroundImage: `url(${author.bio_pic})`}}
+                            />
+                            <div className="flex flex-col justify-center flex-grow ml-3 text-gray-500">
                                 {showInputs ?
-                                    <Input type="text" className="w-full" name="body" setForm={setComment}/>
+                                    <>
+                                        <Input type="textarea" className="w-full mb-3" name="body" setForm={setComment(comment.id)} value={comment.body}/>
+                                        <div className="flex">
+                                            <Cta
+                                                disabled={!validate(comment)}
+                                                className="mr-3"
+                                                icon={comment.awaiting_save ? <MdChatBubbleOutline/> : <MdDone/>}
+                                                onClick={() => {
+                                                    const created_at = now();
+
+                                                    db.comments(post.id).doc(comment.id).set(comment.with({created_at}));
+
+                                                    if(comment.awaiting_save){
+                                                        setComment(comment.id)(currentComment => currentComment.with({
+                                                            awaiting_save: false,
+                                                            created_at
+                                                        }));
+                                                    }else{
+                                                        setEditingId(null);
+                                                    }
+                                                }}
+                                            >
+                                                {comment.awaiting_save ? 'Add' : 'Save'}
+                                            </Cta>
+                                            <OutlineButton
+                                                color="gray-500"
+                                                icon={<MdClose/>}
+                                                onClick={comment.awaiting_save ?
+                                                    () => setComments(currentComments => currentComments.filter(
+                                                        comment => !comment.awaiting_save
+                                                    ))
+                                                    :
+                                                    () => setEditingId(null)
+                                                }
+                                            >
+                                                Cancel
+                                            </OutlineButton>
+                                        </div>
+                                    </>
                                     :
-                                    <p>{comment.body}</p>
+                                    <>
+                                        <div className="flex flex-wrap justify-between flex-grow mb-1 w-full">
+                                            <p className="font-bold">{author.name}</p>
+                                            {comment.created_at && <p className="text-gray-400">{dateString(comment.created_at)}</p>}
+                                        </div>
+                                        <div className="flex justify-between w-full">
+                                            <p>{comment.body}</p>
+                                            {comment.author_id == session.user.id && <div className="flex items-start text-gray-400">
+                                                <Button
+                                                    className="mx-1"
+                                                    onClick={() => setEditingId(comment.id)}
+                                                    customPadding
+                                                >
+                                                    <MdEdit/>
+                                                </Button>
+                                                <Button
+                                                    className="mx-1"
+                                                    onClick={() => {
+                                                        setComments(currentComments => currentComments.filter(c => c.id != comment.id));
+                                                        db.comments(post.id).doc(comment.id).delete();
+                                                    }}
+                                                    customPadding
+                                                >
+                                                    <MdClose/>
+                                                </Button>
+                                            </div>}
+                                        </div>
+                                    </>
                                 }
                             </div>
                         </div>
                     )
                 })}
-                {(props.locked && !comments.find(comment => comment.awaiting_save)) &&
-                    <Button
-                        className="border border-indigo-500 text-indigo-500 hover:shadow hover:text-white hover:bg-indigo-500"
-                        icon={<MdChatBubbleOutline/>}
-                        onClick={() => {
-                            if(session && !loading){
-                                setComments(currentComments => [
-                                    ...currentComments,
-                                    {
-                                        body: '',
-                                        author_id: session.user.id,
-                                        awaiting_save: true
-                                    }
-                                ]);
-                            }
-                        }}
-                    >
-                        Add a comment
-                    </Button>
-                }
+                {(post.likes.length > 0 || props.locked) &&<div className="flex justify-between mt-2 items-center">
+                     {(props.locked && !comments.find(comment => comment.awaiting_save)) &&
+                        <OutlineButton
+                            color="indigo-500"
+                            icon={<MdChatBubbleOutline/>}
+                            onClick={() => {
+                                if(session && !loading){
+                                    setUsers(currentUsers => ({
+                                        ...currentUsers,
+                                        [session.user.id]: session.user
+                                    }));
+
+                                    setComments(currentComments => [
+                                        new Post({
+                                            author_id: session.user.id,
+                                            awaiting_save: true
+                                        }),
+                                        ...currentComments
+                                    ]);
+                                }
+                            }}
+                        >
+                            Add a comment
+                        </OutlineButton>
+                    }
+                    <div className="flex flex-grow justify-end items-center">
+                        <Button
+                            className="text-xl text-red-500"
+                            disabled={session.user.id == post.author_id}
+                            onClick={async () => {
+                                if(session){
+                                    const updatedLikes = post.likes.indexOf(session.user.id) == -1 ?
+                                        [...post.likes, session.user.id] : post.likes.filter(uid => uid != session.user.id);
+
+                                    await db.posts.doc(post.id).set(post.with({
+                                        likes: updatedLikes
+                                    }));
+
+                                    props.setPost(currentPost => currentPost.with({likes: updatedLikes}));
+                                }
+                            }}
+                            icon={session && post.likes.indexOf(session.user.id) == -1 ? <MdFavoriteBorder/> : <MdFavorite/>}
+                            customPadding
+                            flexReverse
+                        >
+                            {post.likes.length > 0 && <div className="text-base">{post.likes.length}</div>}
+                        </Button>
+                    </div>
+                </div>}
             </div>}
         </div>
     );

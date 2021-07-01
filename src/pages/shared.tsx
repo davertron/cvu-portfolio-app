@@ -1,5 +1,5 @@
 import Layout from '../lib/components/Layout';
-import Button, { ButtonProps } from '../lib/components/Button';
+import Button, { ButtonProps, Cta, OutlineButton } from '../lib/components/Button';
 import Error from '../lib/components/Error';
 import db, { User, FileCollection } from '../lib/db';
 import { Authorization } from '../lib/authorization';
@@ -105,21 +105,24 @@ export default function Shared(){
                                     <div className="bg-indigo-700 bg-opacity-80 rounded text-white py-1 px-3">
                                         <p className="py-2 font-bold text-lg">{users[uid].name}</p>
                                         <p className="py-1">{users[uid].role.toTitleCase()}</p>
-                                        <div className="py-2 flex">
-                                            <Button
+                                        <div className="py-2 flex text-sm">
+                                            <Cta
                                                 icon={<MdPersonOutline/>}
                                                 href={'/users/' + uid}
-                                                className="bg-white text-indigo-600 text-sm mr-3"
+                                                className="mr-3"
+                                                customFont
+                                                invert
                                             >
                                                 Profile
-                                            </Button>
-                                            <Button
+                                            </Cta>
+                                            <OutlineButton
+                                                color="indigo-400"
                                                 icon={<CgFeed/>}
                                                 href={'/blog/' + uid}
-                                                className="border border-white text-sm hover:bg-white hover:text-indigo-600"
+                                                invert
                                             >
                                                 Blog
-                                            </Button>
+                                            </OutlineButton>
                                         </div>
                                     </div>
                                 </div>

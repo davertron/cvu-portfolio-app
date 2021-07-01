@@ -1,4 +1,4 @@
-import db, { id, UserRole, User } from '../../../lib/db';
+import db, { User } from '../../../lib/db';
 import NextAuth, { Session } from 'next-auth';
 import Providers from 'next-auth/providers';
 
@@ -61,7 +61,7 @@ export default NextAuth({
                 };
             }
 
-            if(Date.now() < token.accessTokenExpires){
+            if(Date.now() < (token.accessTokenExpires as number)){
                 return token;
             }
 
@@ -75,24 +75,20 @@ export default NextAuth({
             let user: User;
 
             if(snapshot.empty){
-                const userId = id();
-
-                const details = {
+                user = new User({
                     name: session.user.name,
                     email: session.user.email.toLowerCase().trim(),
-                    bio_pic: session.user.image as string,
-                    role: UserRole.STUDENT,
-                    shared_with: []
-                }
+                    bio_pic: session.user.image as string
+                })
 
-                await db.users.doc(userId).set(details);
-                user = {...details, id: userId};
+                await db.users.doc(user.id).set(user);
             }else{
                 user = snapshot.docs[0].data();
             }
 
             session.user.id = user.id;
             session.user.role = user.role;
+            session.user.bio_pic = user.bio_pic;
             session.accessToken = token.accessToken as string;
             session.error = token.error;
 

@@ -1,4 +1,4 @@
-import { Timestamp } from './db';
+import { Timestamp, Model } from './db';
 import { Session } from 'next-auth';
 
 declare global {
@@ -30,6 +30,8 @@ String.prototype.toTitleCase = function(){
     if(this.length > 0) return this[0].toUpperCase() + this.substring(1, this.length).toLowerCase();
 }
 
+export const createdAt = (a,b) => (a.created_at && b.created_at) ?  valueOf(b.created_at) - valueOf(a.created_at) : 0;
+
 export function classNames(...classes: string[]){
   return classes.filter(Boolean).join(' ');
 }
@@ -38,14 +40,14 @@ export function homepage(session: Session){
     return '/users/' + session.user.id;
 }
 
-export function merge<T>(original: T[], update: T[], uniqueProp: string) : T[] {
+export function merge<T extends Model>(original: T[], update: T[], uniqueProp: string) : T[] {
     let merged = original.map(a => {
         const isUnique = b => b[uniqueProp] != a[uniqueProp];
 
         const [remaining, duplicates] = update.separate(isUnique);
         update = remaining;
 
-        return duplicates.length > 0 ? {...a, ...duplicates[0]} : a;
+        return duplicates.length > 0 ? a.with(duplicates[0]) : a;
     });
 
     return merged.concat(update);

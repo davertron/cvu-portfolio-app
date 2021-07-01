@@ -13,9 +13,9 @@ export default function Collection(){
     const [session, loading] = useSession();
 
     const [collections, setCollections] = useState([] as FileCollection[]);
-    const [artifacts, setArtifacts] = useState({} as Map<string, number>)
-    const [posts, setPosts] = useState({} as Map<string, number>);
-    const [user, setUser] = useState({} as User);
+    const [artifacts, setArtifacts] = useState(new Map() as Map<string, number>)
+    const [posts, setPosts] = useState(new Map() as Map<string, number>);
+    const [user, setUser] = useState(new User({}));
     const [error, setError] = useState(null);
 
     const [dbLoaded, setDbLoaded] = useState(false);
@@ -42,7 +42,7 @@ export default function Collection(){
                 dbPosts[collection.id] = postsSnapshot.docs.length;
             }
 
-            setCollections(currentCollections => merge<FileCollection>(currentCollections, dbCollections, 'drive_id'));
+            setCollections(currentCollections => merge<FileCollection>(dbCollections, currentCollections, 'drive_id'));
             setPosts(dbPosts);
             setArtifacts(dbArtifacts);
             setUser(dbUser);
@@ -100,7 +100,7 @@ export default function Collection(){
     }
 
     useEffect(() => {
-        if(session && !loading && !dbLoaded){
+        if(!loading && !dbLoaded){
             getData();
         }
 

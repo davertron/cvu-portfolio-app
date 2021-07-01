@@ -1,11 +1,13 @@
 import { Props, Parent } from './types';
 import { classNames } from '../util';
+import { Model } from '../db';
 import Error from './Error';
 import { Switch } from '@headlessui/react';
-import { FormEvent, FormEventHandler, useState } from 'react';
+import { Dispatch, FormEvent, FormEventHandler, SetStateAction, useState } from 'react';
 import Files from 'react-files';
 
-export type StateSetter = (cb: Function | Object) => any;
+export type StateSetter<T = any> = (currentState: T) => T;
+export type ModelSetter<T extends Model = any> = Dispatch<SetStateAction<T>>;
 
 interface InputProps extends Props, Parent {
     type: string
@@ -17,7 +19,7 @@ interface InputProps extends Props, Parent {
     onFocus?: FormEventHandler
     onInput?: FormEventHandler
     onError?: FormEventHandler
-    setForm?: StateSetter
+    setForm?: ModelSetter
     setFiles?: StateSetter
     placeholder?: string
     customBg?: boolean
@@ -25,7 +27,7 @@ interface InputProps extends Props, Parent {
     customRounding?: boolean
 }
 
-function defaultHandler(setForm: StateSetter) : FormEventHandler {
+function defaultHandler(setForm: ModelSetter) : FormEventHandler {
     return (e: FormEvent<Element>) => {
         let val = e.target.value;
         let name = e.target.name;
@@ -33,37 +35,26 @@ function defaultHandler(setForm: StateSetter) : FormEventHandler {
 
         setForm(prevForm => {
             if(e.target.type == 'checkbox') val = !prevForm[name];
-
-            return {
-                ...prevForm,
-                [name]: val
-            }
+            return prevForm.with({[name]: val});
         });
     }
 }
 
-function staticHandler(setForm: StateSetter, name: string) {
+function staticHandler(setForm: ModelSetter, name: string) {
     return (e: FormEvent<Element>) => {
         let val = e.target.getAttribute('value');
         name = name.split('_')[0];
 
         setForm(prevForm => {
             if(e.target.type == 'checkbox') val = !prevForm[name];
-
-            return {
-                ...prevForm,
-                [name]: val
-            }
+            return prevForm.with({[name]: val});
         });
     }
 }
 
-function switchHandler(setForm: StateSetter, name: string) : (checked: boolean) => void {
+function switchHandler(setForm: ModelSetter, name: string) : (checked: boolean) => void {
     return (checked: boolean) => {
-        setForm(prevForm => ({
-            ...prevForm,
-            [name]: checked
-        }))
+        setForm(prevForm => prevForm.with({[name]: checked}));
     }
 }
 
