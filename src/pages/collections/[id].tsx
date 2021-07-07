@@ -91,7 +91,7 @@ export default function Collection(props: CollectionProps){
     async function getDriveData(client){
         try {
             setDriveLoaded(null);
-            
+
             const drive = await db.drive(client);
             const [driveCollection, driveArtifacts] = await drive.file_collections.load([
                 collection,
@@ -275,6 +275,7 @@ export default function Collection(props: CollectionProps){
                                     setArtifact={setArtifact(artifact.id)}
                                     removeArtifact={removeArtifact(artifact.id)}
                                     onClick={owned ? () => setEditing(true) : () => {}}
+                                    apisLoaded={apisLoaded}
                                     editing={showInputs && !saveDisabled}
                                 />
                             )
@@ -332,11 +333,31 @@ interface ArtifactProps extends Interactive {
     setArtifact: (cb: StateSetter) => void
     removeArtifact: () => void
     editing?: boolean
+    apisLoaded?: boolean
 }
 
 function CollectionArtifact(props: ArtifactProps){
     const [pinned, setPinned] = useState(false);
+    const [thumbnail, setThumbnail] = useState(null);
     const artifact = props.artifact;
+
+    async function loadThumbnail(){
+        try {
+            const res = await window.gapi.client.request(artifact.thumbnail);
+            const data = await res.blob();
+            const localURL = URL.createObjectURL(data);
+
+            setThumbnail(localURL);    
+        }catch(e){
+            console.log('Failed to load thumbnail', e);
+        }
+    }
+
+    useEffect(() => {
+        if(props.apisLoaded && artifact.thumbnail){
+            loadThumbnail();
+        }
+    }, [props.apisLoaded, artifact]);
 
     return (
         <div key={artifact.id} className="m-4 w-80">
@@ -344,7 +365,7 @@ function CollectionArtifact(props: ArtifactProps){
                 <div
                     className="transition-all rounded-t relative group"
                     style={{
-                        backgroundImage: `url(https://lh3.google.com/u/1/d/1Q6P_uxijw2eGvHkcwmgKK5QGWgWKBUrSNzMFzbmWn7I=w250-h238-p-k-nu-iv29)`,
+                        backgroundImage: thumbnail ? `url(${thumbnail})` : '',
                         backgroundSize: 'cover',
                         minHeight: '200px'
                     }}
@@ -401,7 +422,7 @@ function CollectionArtifact(props: ArtifactProps){
                         </div>
                     </div>}
                 </div>
-                <div className="bg-gray-100 px-4 py-3 rounded-b text-gray-600 flex flex-row items-start shadow shadow-t-0">
+                <div className="bg-gray-100 px-4 py-3 rounded-b text-gray-600 flex items-start">
                     <img src={artifact.icon} className="w-auto h-5 pr-3 pt-1"/>
                     <div ><a href={artifact.web_view} target="_blank">{artifact.title}</a></div>
                 </div>
