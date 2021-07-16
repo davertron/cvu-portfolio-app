@@ -5,7 +5,7 @@
 
 import Nav from './Nav';
 import { useAuth, Authorization } from '../authorization';
-import { User } from '../db';
+import db, { User } from '../db';
 import { Props, Parent } from './types';
 import { classNames } from '../util';
 import { useEffect, useState } from 'react';
@@ -56,6 +56,10 @@ export default function Layout(props: LayoutProps){
     useEffect(() => {
         if(!loading && !initialized && (props.authorization != Authorization.SHARED || (props.author && props.authorLoaded))){
             const authState = useAuth(props.authorization, session, props.author);
+
+            if(session && !session.firebaseAuth){
+                db.setCredentials(session.accessToken);
+            }
 
             if(!authState.success){
                 router.push(authState.redirect);

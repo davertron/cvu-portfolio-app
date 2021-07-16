@@ -53,7 +53,7 @@ export default function Collection(props: CollectionProps){
         }
     }
 
-    const validate = (collection: FileCollection, artifacts: Artifact[]) => (collection.title && collection.title.trim() != '');
+    const validate = (collection: FileCollection, artifacts: Artifact[]) => !!collection.title;
 
     async function getData(cid?: string){
         try {
@@ -234,7 +234,11 @@ export default function Collection(props: CollectionProps){
                                                 const doc = picked.docs[i];
 
                                                 if(artifacts.filter(a => a.drive_id == doc.id).length == 0){ // Make sure document is not a duplicate
-                                                    let artifact = new Artifact({drive_id: doc.id});
+                                                    let artifact = new Artifact({
+                                                        author_id: session.user.id,
+                                                        drive_id: doc.id
+                                                    });
+
                                                     artifact = await drive.artifacts.load(artifact);
 
                                                     updated.push(artifact);
@@ -343,19 +347,37 @@ function CollectionArtifact(props: ArtifactProps){
 
     async function loadThumbnail(){
         try {
-            const res = await window.gapi.client.request(artifact.thumbnail);
+            const res = await window.gapi.client.request({path: artifact.thumbnail});
             const data = await res.blob();
             const localURL = URL.createObjectURL(data);
 
-            setThumbnail(localURL);    
+            setThumbnail(localURL);
         }catch(e){
             console.log('Failed to load thumbnail', e);
         }
     }
 
+    async function _minimalReproduction(){
+        try {
+            const client = window.gapi.client;
+            const snapshot = await client.drive.files.get({
+                fileId: artifact.drive_id,
+                fields: 'thumbnailLink'
+            });
+
+            const thumbnailRes = await client.request({
+                path: snapshot.result.thumbnailLink
+            });
+
+        }catch(e){
+            console.log('Minimal reprod failed', e);
+        }
+    }
+
     useEffect(() => {
         if(props.apisLoaded && artifact.thumbnail){
-            loadThumbnail();
+            //loadThumbnail();
+            _minimalReproduction();
         }
     }, [props.apisLoaded, artifact]);
 

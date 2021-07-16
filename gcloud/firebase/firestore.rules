@@ -1,0 +1,32 @@
+rules_version = '2'
+
+service cloud.firestore {
+    match /databases/{database}/documents {
+        function getUserId(){
+            return get(/databases/$(database)/documents/token_records/$(request.auth.token)).data.user_id
+        }
+
+        function isAuthor(){
+            return getUserId() == request.resource.data.author_id
+                && (resource.data.author_id == null || resource.data.author_id == request.resource.data.author_id)
+        }
+
+        function isSignedIn(){
+            return request.auth != null
+        }
+
+        match /users/{userId} {
+            allow write: if isSignedIn() && getUserId() == resource.id
+        }
+
+        // TODO: Make this only accessible from server
+        match /token_records/{token} {
+            allow get, write
+        }
+
+        match /{document=**} {
+            allow write: if isSignedIn() && isAuthor()
+            allow read: if isSignedIn() && request.auth.token != null
+        }
+    }
+}

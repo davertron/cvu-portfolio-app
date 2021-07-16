@@ -4,6 +4,7 @@ import { getSession, signOut } from 'next-auth/client';
 
 import firebase from 'firebase/app';
 import 'firebase/firestore';
+import 'firebase/auth';
 import 'firebase/storage';
 
 // Annotation to prevent field from being saved to Firestore
@@ -166,6 +167,7 @@ export class FileCollection extends Model {
 export class Artifact extends Model {
     drive_id: string;
     shortcut_id: string;
+    author_id: string;
 
     @NonSerializable
     title: string;
@@ -197,7 +199,6 @@ export class Artifact extends Model {
 }
 
 export class Post extends Model {
-
     created_at: Timestamp;
     author_id: string;
     title?: string = '';
@@ -221,7 +222,6 @@ export class Post extends Model {
         super();
         this.concat(params);
     }
-
 }
 
 export class Comment extends Model {
@@ -247,6 +247,27 @@ export class Comment extends Model {
     }
 }
 
+export class TokenRecord extends Model {
+    // ID will represent OAuth token, so should not initialize as dbid()
+    @NonSerializable
+    id: string = null;
+
+    expires: number;
+    user_id: string;
+
+    concat(params: Partial<TokenRecord>){
+        super.concat(params);
+    }
+
+    with(params: Partial<TokenRecord>) : this {
+        return super.with(params);
+    }
+
+    constructor(params: Partial<TokenRecord>){
+        super();
+        this.concat(params);
+    }
+}
 
 const app = firebase.apps.length? firebase.apps[0] : firebase.initializeApp({
     apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -282,6 +303,7 @@ class CollectionFactory {
 
 const store = app.firestore();
 const bucket = app.storage().ref();
+const auth = app.auth();
 const cf = new CollectionFactory(store);
 
 type CollectionReference<T extends Model> = firebase.firestore.CollectionReference<T>;
@@ -290,15 +312,19 @@ type DriveReference = (client: any) => Promise<DriveDB>;
 type BucketReference = (filename: string) => firebase.storage.Reference;
 
 interface Db {
-    users: CollectionReference<User>,
-    file_collections: CollectionReference<FileCollection>,
-    posts: firebase.firestore.CollectionReference<Post>,
-    comments: CollectionChild<Comment>,
-    artifacts: CollectionChild<Artifact>,
+    users: CollectionReference<User>;
+    file_collections: CollectionReference<FileCollection>;
+    posts: CollectionReference<Post>;
+    token_records: CollectionReference<TokenRecord>;
+    comments: CollectionChild<Comment>;
+    artifacts: CollectionChild<Artifact>;
 
-    storage: BucketReference,
-    avatars: BucketReference,
-    drive: DriveReference
+    setCredentials: (token: string) => Promise<void>;
+    generateToken: (uid: string) => string;
+
+    storage: BucketReference;
+    avatars: BucketReference;
+    drive: DriveReference;
 }
 
 let db: Db = {
@@ -306,8 +332,17 @@ let db: Db = {
     users: cf.new<User>('users', User),
     file_collections: cf.new<FileCollection>('file_collections', FileCollection),
     posts: cf.new<Post>('posts', Post),
+    token_records: cf.new<TokenRecord>('token_records', TokenRecord),
     comments: (postId: string) => cf.new<Comment>('posts/' + postId + '/comments', Comment),
     artifacts: (collectionId: string) => cf.new<Artifact>('file_collections/' + collectionId + '/artifacts', Artifact),
+
+    // Set Firebase auth credentials
+    setCredentials: async (token: string) => {
+        await auth.signInWithCustomToken(token);
+    },
+    generateToken: (uid: string) => {
+        return uid;
+    },
 
     // File storage bucket
     storage: (filename: string) => bucket.child(filename),

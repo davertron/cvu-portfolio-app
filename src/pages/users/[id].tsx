@@ -5,7 +5,7 @@ import Tag from '../../lib/components/Tag';
 import Button, { OutlineButton, Cta } from '../../lib/components/Button';
 import { Authorization } from '../../lib/authorization';
 import db, { User, FileCollection, Permission } from '../../lib/db';
-import { classNames, loadStarted, warnIfUnsaved } from '../../lib/util';
+import { loadStarted, warnIfUnsaved } from '../../lib/util';
 import { MdEdit, MdClose, MdCheck, MdPersonAdd, MdAdd } from 'react-icons/md';
 import { useSession } from 'next-auth/client';
 import { useRouter } from 'next/router';

@@ -2,6 +2,7 @@ import { User } from './db';
 import { homepage } from './util';
 import { Session } from 'next-auth';
 import { signOut } from 'next-auth/client';
+import Cryptr from 'cryptr';
 
 export interface AuthState {
     success: boolean
@@ -10,6 +11,11 @@ export interface AuthState {
 
 export enum Authorization {
     GUEST, USER, SHARED
+}
+
+// TODO: Implement encryption
+export function encrypt(token: string){
+    return token;
 }
 
 export function useAuth(authorization: Authorization, session: Session, author?: User) : AuthState {
