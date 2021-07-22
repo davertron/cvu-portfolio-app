@@ -5,10 +5,23 @@ import Error from '../../lib/components/Error';
 import Tag from '../../lib/components/Tag';
 import { Authorization } from '../../lib/authorization';
 import { dateString, classNames, createdAt, warnIfUnsaved, loadStarted } from '../../lib/util';
-import db, { now, Post, FileCollection, User, Comment } from '../../lib/db';
+import db from '../../lib/db/client';
+import { Post, FileCollection, User, Comment } from '../../lib/db/models';
+import { now } from '../../lib/db/util';
 import { useSession } from 'next-auth/client';
 import { useEffect, useState } from 'react';
-import { MdAdd, MdSearch, MdClose, MdDone, MdEdit, MdChatBubbleOutline, MdFavorite, MdFavoriteBorder, MdExpandLess, MdMoreHoriz } from 'react-icons/md';
+import {
+    MdAdd,
+    MdSearch,
+    MdClose,
+    MdDone,
+    MdEdit,
+    MdChatBubbleOutline,
+    MdFavorite,
+    MdFavoriteBorder,
+    MdExpandLess,
+    MdMoreHoriz
+} from 'react-icons/md';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 

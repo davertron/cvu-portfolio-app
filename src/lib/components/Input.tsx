@@ -1,6 +1,6 @@
 import { Props, Parent } from './types';
 import { classNames } from '../util';
-import { Model } from '../db';
+import { Model } from '../db/models';
 import Error from './Error';
 import { Switch } from '@headlessui/react';
 import { Dispatch, FormEvent, FormEventHandler, SetStateAction, useState } from 'react';

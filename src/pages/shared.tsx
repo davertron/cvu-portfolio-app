@@ -1,7 +1,8 @@
 import Layout from '../lib/components/Layout';
 import Button, { ButtonProps, Cta, OutlineButton } from '../lib/components/Button';
 import Error from '../lib/components/Error';
-import db, { User, FileCollection } from '../lib/db';
+import db from '../lib/db/client';
+import { User, FileCollection } from '../lib/db/models';
 import { Authorization } from '../lib/authorization';
 import { classNames } from '../lib/util';
 import { useEffect, useState } from 'react';

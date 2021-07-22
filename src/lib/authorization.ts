@@ -1,8 +1,7 @@
-import { User } from './db';
+import { User } from './db/models';
 import { homepage } from './util';
 import { Session } from 'next-auth';
 import { signOut } from 'next-auth/client';
-import Cryptr from 'cryptr';
 
 export interface AuthState {
     success: boolean

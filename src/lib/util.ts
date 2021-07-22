@@ -1,4 +1,5 @@
-import { Timestamp, Model } from './db';
+import { Model } from './db/models';
+import { Timestamp } from './db/util';
 import { Session } from 'next-auth';
 
 declare global {

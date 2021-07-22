@@ -1,26 +1,8 @@
-import db, { User, TokenRecord } from '../../../lib/db';
+import db from '../../../lib/db/server';
+import { User, TokenRecord } from '../../../lib/db/models';
 import { encrypt } from '../../../lib/authorization';
 import NextAuth, { Session } from 'next-auth';
 import Providers from 'next-auth/providers';
-
-async function createTokenRecord(user: User, accessToken: string, expires: number){
-    const snapshot = await db.token_records.where('user_id', '==', user.id).get();
-
-    if(!snapshot.empty){
-        for(let rid of snapshot.docs.map(doc => doc.id)){
-            await db.token_records.doc(rid).delete();
-        }
-    }
-
-    await db.token_records.doc(encrypt(accessToken)).set(new TokenRecord({
-        user_id: user.id,
-        expires: expires
-    }));
-}
-
-async function removeTokenRecord(accessToken: string){
-    await db.token_records.doc(encrypt(accessToken)).delete();
-}
 
 async function refreshAccessToken(token){
     try {
@@ -107,7 +89,7 @@ export default NextAuth({
                 user = snapshot.docs[0].data();
             }
 
-            await createTokenRecord(user, accessToken, token.accessTokenExpires as number);
+            session.firebaseToken = await db.createToken(user.id, user);
 
             session.user.id = user.id;
             session.user.role = user.role;
@@ -121,7 +103,7 @@ export default NextAuth({
 
     events: {
         async signOut(message: Session){
-            await removeTokenRecord(message.accessToken);
+            //await removeTokenRecord(message.accessToken);
         }
     }
 });
