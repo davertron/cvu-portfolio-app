@@ -11,7 +11,7 @@ export interface DriveHandler<T> {
 }
 
 // Handles drive-based schema attributes
-export default class DriveDB {
+export default class DriveDb {
     client;
 
     constructor(client, token: string){
@@ -19,11 +19,11 @@ export default class DriveDB {
         this.client = client;
     }
 
-    static async init(client) : Promise<DriveDB> {
+    static async init(client) : Promise<DriveDb> {
         const session = await getSession();
 
         if(!session.error){
-            return new DriveDB(client, session.accessToken);
+            return new DriveDb(client, session.accessToken);
         }else{
             throw new Error('OAuth session is no longer valid');
         }
@@ -61,7 +61,7 @@ export default class DriveDB {
 
     artifacts: DriveHandler<Artifact> = {
 
-        load: DriveDB.exec_safe(async (artifact: Artifact) => {
+        load: DriveDb.exec_safe(async (artifact: Artifact) => {
             const snapshot = await this.client.drive.files.get({
                 fileId: artifact.drive_id,
                 fields: 'name,iconLink,thumbnailLink,webViewLink,description'
@@ -81,7 +81,7 @@ export default class DriveDB {
             return artifact;
         }),
 
-        save: DriveDB.exec_safe(async (artifact: Artifact, collection_drive_id?: string) => {
+        save: DriveDb.exec_safe(async (artifact: Artifact, collection_drive_id?: string) => {
             if(artifact.awaiting_delete){
                 await this.client.drive.files.delete({fileId: artifact.shortcut_id});
             }else{
@@ -119,7 +119,7 @@ export default class DriveDB {
             return artifact;
         }),
 
-        remove: DriveDB.exec_safe(async (artifact: Artifact) => {
+        remove: DriveDb.exec_safe(async (artifact: Artifact) => {
             await this.artifacts.save(artifact.with({awaiting_delete: true}));
         }),
 
@@ -127,7 +127,7 @@ export default class DriveDB {
 
     file_collections: DriveHandler<[FileCollection, Artifact[]]> = {
 
-        save: DriveDB.exec_safe(async ([collection, artifacts]: [FileCollection, Artifact[]]) : Promise<[FileCollection, Artifact[]]> => {
+        save: DriveDb.exec_safe(async ([collection, artifacts]: [FileCollection, Artifact[]]) : Promise<[FileCollection, Artifact[]]> => {
             if(!collection.drive_id){
                 const folderSnapshot = await this.client.drive.files.create({
                     resource: {
@@ -154,7 +154,7 @@ export default class DriveDB {
             return [collection, artifacts];
         }),
 
-        load: DriveDB.exec_safe(async ([collection, artifacts]: [FileCollection, Artifact[]]) : Promise<[FileCollection, Artifact[]]> => {
+        load: DriveDb.exec_safe(async ([collection, artifacts]: [FileCollection, Artifact[]]) : Promise<[FileCollection, Artifact[]]> => {
             const snapshot = await this.client.drive.files.get({
                 fileId: collection.drive_id,
                 fields: 'name,webViewLink'
@@ -174,7 +174,7 @@ export default class DriveDB {
             ];
         }),
 
-        remove: DriveDB.exec_safe(async ([collection, artifacts]: [FileCollection, Artifact[]]) => {
+        remove: DriveDb.exec_safe(async ([collection, artifacts]: [FileCollection, Artifact[]]) => {
             await this.client.drive.files.delete({
                 fileId: collection.drive_id
             });
@@ -184,7 +184,7 @@ export default class DriveDB {
             ));
         }),
 
-        share: DriveDB.exec_safe(async ([collection, artifacts]: [FileCollection, Artifact[]], permission: Permission) => {
+        share: DriveDb.exec_safe(async ([collection, artifacts]: [FileCollection, Artifact[]], permission: Permission) => {
             const updated =  permission;
 
             if(!updated.drive_permissions[collection.drive_id]){
@@ -206,7 +206,7 @@ export default class DriveDB {
             return updated;
         }),
 
-        unshare: DriveDB.exec_safe(async ([collection, artifacts]: [FileCollection, Artifact[]], permission: Permission) => {
+        unshare: DriveDb.exec_safe(async ([collection, artifacts]: [FileCollection, Artifact[]], permission: Permission) => {
             if(permission.drive_permissions[collection.drive_id]){
                 await this.deletePermission(collection.drive_id, permission.drive_permissions[collection.drive_id]);
                 delete permission.drive_permissions[collection.drive_id];
@@ -222,7 +222,7 @@ export default class DriveDB {
             return permission;
         }),
 
-        set_access: DriveDB.exec_safe(async (state: [FileCollection, Artifact[]], permission: Permission) => {
+        set_access: DriveDb.exec_safe(async (state: [FileCollection, Artifact[]], permission: Permission) => {
             return await this.file_collections[permission.awaiting_delete ? 'unshare' : 'share'](state, permission);
         })
     };

@@ -1,6 +1,5 @@
 import db from '../../../lib/db/server';
-import { User, TokenRecord } from '../../../lib/db/models';
-import { encrypt } from '../../../lib/authorization';
+import { User } from '../../../lib/db/models';
 import NextAuth, { Session } from 'next-auth';
 import Providers from 'next-auth/providers';
 
@@ -89,7 +88,7 @@ export default NextAuth({
                 user = snapshot.docs[0].data();
             }
 
-            session.firebaseToken = await db.createToken(user.id, user);
+            session.firebaseToken = await db.createToken(user.id, {shared_with: user.shared_with});
 
             session.user.id = user.id;
             session.user.role = user.role;
@@ -98,12 +97,6 @@ export default NextAuth({
             session.error = token.error;
 
             return Promise.resolve(session);
-        }
-    },
-
-    events: {
-        async signOut(message: Session){
-            //await removeTokenRecord(message.accessToken);
         }
     }
 });

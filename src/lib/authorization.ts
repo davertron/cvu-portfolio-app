@@ -12,11 +12,6 @@ export enum Authorization {
     GUEST, USER, SHARED
 }
 
-// TODO: Implement encryption
-export function encrypt(token: string){
-    return token;
-}
-
 export function useAuth(authorization: Authorization, session: Session, author?: User) : AuthState {
 
     switch(authorization){

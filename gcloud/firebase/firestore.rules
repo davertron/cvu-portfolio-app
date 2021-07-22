@@ -12,12 +12,9 @@ service cloud.firestore {
         }
 
         match /users/{userId} {
-            allow write: if isSignedIn() && request.auth.user.id == resource.id
-        }
-
-        // TODO: Make this only accessible from server
-        match /token_records/{token} {
-            allow get, write
+            // Users can only be created by the admin SDK
+            allow create if false
+            allow update, delete: if isSignedIn() && request.auth.user.id == resource.id
         }
 
         match /{document=**} {

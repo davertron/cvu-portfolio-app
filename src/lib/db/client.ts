@@ -1,9 +1,9 @@
 import firebase from 'firebase/app';
 import Db from './base';
-import DriveDB from './drive';
+import DriveDb from './drive';
 import { App, Firestore, Auth, StorageReference } from './util';
 
-export type DriveReference = (client: any) => Promise<DriveDB>;
+export type DriveReference = (client: any) => Promise<DriveDb>;
 export type BucketReference = (filename: string) => firebase.storage.Reference;
 
 // Db using client-side firebase library
@@ -26,7 +26,7 @@ class ClientDb extends Db {
         this.auth = app.auth();
         this.store = app.firestore();
         this.bucket = this.app.storage().ref();
-        this.drive = DriveDB.exec_safe(DriveDB.init);
+        this.drive = DriveDb.exec_safe(DriveDb.init);
 
         this.storage = (filename: string) => this.bucket.child(filename);
         this.avatars = (filename: string) => this.bucket.child('avatars/' + filename);

@@ -46,7 +46,7 @@ export default class Db {
     auth: any;
 
     constructor(app: any){
-        this.app = {firestore: () => 0, auth: () => 0};
+        this.app = app;
         this.store = app.firestore();
         this.auth = app.auth();
 
