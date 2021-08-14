@@ -20,7 +20,12 @@ export default function Index(){
                 </div>
                 <h1 className="text-3xl text-gray-700 mb-10 mt-3"><span className="font-bold">Upgrade</span> your learning with MyPortfolio</h1>
                 {!loading && !session &&
-                    <Cta onClick={() => signIn('google')} icon={<CgGoogle size="1.1em"/>} className="text-lg" gradient>
+                    <Cta
+                        onClick={() => signIn('google', {redirect: false})}
+                        icon={<CgGoogle size="1.1em"/>}
+                        className="text-lg"
+                        gradient
+                    >
                         Continue with Google
                     </Cta>
                 }

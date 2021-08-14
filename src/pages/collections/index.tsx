@@ -2,7 +2,8 @@ import { Authorization } from '../../lib/authorization';
 import Layout from '../../lib/components/Layout';
 import Error from '../../lib/components/Error';
 import Button, { Cta } from '../../lib/components/Button';
-import db, { User, FileCollection } from '../../lib/db';
+import db from '../../lib/db/client';
+import { User, FileCollection } from '../../lib/db/models';
 import { loadStarted, merge } from '../../lib/util';
 import { useSession } from 'next-auth/client';
 import { useState, useEffect } from 'react';
@@ -80,20 +81,11 @@ export default function Collection(){
                 const drive = await db.drive(client);
 
                 for(let permission of user.shared_with){
-                    drive.file_collections.unshare([collection, collectionArtifacts], permission);
+                    await drive.file_collections.unshare([collection, collectionArtifacts], permission);
                 }
 
-                drive.file_collections.remove([
-                    collection,
-                    collectionArtifacts
-                ]);
-
-                for(let i = 0; i < collectionArtifacts.length; i++){
-                    const artifact = collectionArtifacts[i];
-                    await db.artifacts(collection.id).doc(artifact.id).delete();
-                }
-
-                db.file_collections.doc(collection.id).delete();
+                await drive.file_collections.remove([collection, []]);
+                await db.file_collections.doc(collection.id).delete();
 
                 setArtifacts(currentArtifacts => ({...currentArtifacts, [collection.id]: undefined}));
                 setCollections(currentCollections => currentCollections.filter(c => c.id != collection.id));
@@ -127,50 +119,52 @@ export default function Collection(){
                 <Error error={error}/>
             </div>}
             <div className="flex flex-wrap justify-center py-3 px-5">
-                {collections.length > 0 ?
-                    <>
-                        {collections.map(collection => (
-                            <div key={collection.id}>
-                                <div className="m-4 bg-purple-100 shadow rounded w-56">
-                                    <div className="text-gray-600 px-4 pt-1 pb-2">
-                                        <div className="flex items-start">
-                                            <p className="text-lg font-bold my-2 h-full flex-grow">
-                                                {collection.title}
+                {dbLoaded &&
+                    (collections.length > 0 ?
+                        <>
+                            {collections.map(collection => (
+                                <div key={collection.id}>
+                                    <div className="m-4 bg-purple-100 shadow rounded w-56">
+                                        <div className="text-gray-600 px-4 pt-1 pb-2">
+                                            <div className="flex items-start">
+                                                <p className="text-lg font-bold my-2 h-full flex-grow">
+                                                    {collection.title}
+                                                </p>
+                                                {posts[collection.id] == 0 && <Button
+                                                    className="py-3"
+                                                    onClick={() => remove(window.gapi.client, collection)}
+                                                    customPadding
+                                                >
+                                                    <MdClose/>
+                                                </Button>}
+                                            </div>
+                                            <p className="my-2 text-gray-600">
+                                                {artifacts[collection.id] || 0} artifact{artifacts[collection.id] != 1 && 's'}
+                                                 <> | {posts[collection.id]} post{posts[collection.id] != 1 && 's'}</>
                                             </p>
-                                            {posts[collection.id] == 0 && <Button
-                                                className="py-3"
-                                                onClick={() => remove(window.gapi.client, collection)}
-                                                customPadding
-                                            >
-                                                <MdClose/>
-                                            </Button>}
                                         </div>
-                                        <p className="my-2 text-gray-600">
-                                            {artifacts[collection.id] || 0} artifact{artifacts[collection.id] != 1 && 's'}
-                                             <> | {posts[collection.id]} post{posts[collection.id] != 1 && 's'}</>
-                                        </p>
+                                        <Button
+                                            icon={<MdOpenInNew/>}
+                                            className="bg-purple-300 rounded-b w-full hover:text-white hover:bg-purple-500"
+                                            href={'/collections/' + collection.id}
+                                            customRounding
+                                        >
+                                            View
+                                        </Button>
                                     </div>
-                                    <Button
-                                        icon={<MdOpenInNew/>}
-                                        className="bg-purple-300 rounded-b w-full hover:text-white hover:bg-purple-500"
-                                        href={'/collections/' + collection.id}
-                                        customRounding
-                                    >
-                                        View
-                                    </Button>
                                 </div>
-                            </div>
-                        ))}
-                        <Cta
-                            className="m-4 w-28 text-center flex items-center justify-center bg-gray-100 text-gray-500 bg-gradient-to-r hover:from-purple-500 hover:to-indigo-500 hover:text-white"
-                            href="/collections/new"
-                            customBg
-                        >
-                            <MdAdd size="2em"/>
-                        </Cta>
-                    </>
-                    :
-                    <p className="text-center py-10 text-lg">You don't have any collections yet. <Link href="/collections/new"><a className="text-blue-500 hover:underline">Add one</a></Link></p>
+                            ))}
+                            <Cta
+                                className="m-4 w-28 text-center flex items-center justify-center bg-gray-100 text-gray-500 bg-gradient-to-r hover:from-purple-500 hover:to-indigo-500 hover:text-white"
+                                href="/collections/new"
+                                customBg
+                            >
+                                <MdAdd size="2em"/>
+                            </Cta>
+                        </>
+                        :
+                        <p className="text-center py-10 text-lg">You don't have any collections yet. <Link href="/collections/new"><a className="text-blue-500 hover:underline">Add one</a></Link></p>
+                    )
                 }
             </div>
         </Layout>

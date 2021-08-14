@@ -35,6 +35,10 @@ yarn-error.log*
 
 next-env.d.ts
 .env
-next.config.js
 
-prisma/migrations
+# Firebase sub-repo
+/gcloud/firebase
+!/gcloud/firebase/anchor
+
+# Firebase private key
+absolute-vertex-313616-firebase-adminsdk*.json

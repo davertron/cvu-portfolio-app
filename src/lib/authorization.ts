@@ -1,11 +1,11 @@
-import { User } from './db';
+import { User } from './db/models';
 import { homepage } from './util';
 import { Session } from 'next-auth';
 import { signOut } from 'next-auth/client';
 
 export interface AuthState {
-    success: boolean
-    redirect?: string
+    success: boolean;
+    redirect?: string;
 }
 
 export enum Authorization {

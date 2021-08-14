@@ -1,13 +1,14 @@
-import { Timestamp, Model } from './db';
+import { Model } from './db/models';
+import { Timestamp } from './db/util';
 import { Session } from 'next-auth';
 
 declare global {
     interface Array<T> {
-        separate(predicate: (elem: T) => boolean): [T[], T[]]
+        separate(predicate: (elem: T) => boolean): [T[], T[]];
     }
 
     interface String {
-        toTitleCase(): String
+        toTitleCase(): String;
     }
 }
 

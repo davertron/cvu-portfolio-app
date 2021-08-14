@@ -1,4 +1,5 @@
-import db, { User } from '../../../lib/db';
+import db from '../../../lib/db/server';
+import { User } from '../../../lib/db/models';
 import NextAuth, { Session } from 'next-auth';
 import Providers from 'next-auth/providers';
 
@@ -70,6 +71,7 @@ export default NextAuth({
 
         async session(session: Session, token: Session){
             session.user = token.user;
+            const accessToken = token.accessToken as string;
 
             const snapshot = await db.users.where('email', '==', session.user.email).get();
             let user: User;
@@ -78,13 +80,24 @@ export default NextAuth({
                 user = new User({
                     name: session.user.name,
                     email: session.user.email.toLowerCase().trim(),
-                    bio_pic: session.user.image as string
-                })
+                    bio_pic: {url: session.user.image as string, name: null},
+                    image: session.user.image
+                });
 
                 await db.users.doc(user.id).set(user);
             }else{
                 user = snapshot.docs[0].data();
+
+                // Update avatar if necessary
+                if(user.image != session.user.image){
+                    user = user.with({image: session.user.image});
+                    await db.users.doc(user.id).set(user);
+                }
             }
+
+            session.firebaseToken = await db.createToken(user.id, {
+                role: user.role
+            });
 
             session.user.id = user.id;
             session.user.role = user.role;
@@ -95,5 +108,4 @@ export default NextAuth({
             return Promise.resolve(session);
         }
     }
-
 });

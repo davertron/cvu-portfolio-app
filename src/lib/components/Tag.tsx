@@ -5,10 +5,10 @@ import { MdAdd, MdClose } from 'react-icons/md';
 import { useState, useEffect } from 'react';
 
 interface TagProps extends Parent, Props, StaticButtonProps {
-    gradient?: boolean
-    active?: boolean
-    selected?: boolean
-    onClick?: (selected: boolean) => void
+    gradient?: boolean;
+    active?: boolean;
+    selected?: boolean;
+    onClick?: (selected: boolean) => void;
 }
 
 export default function Tag(props: TagProps){
