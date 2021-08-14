@@ -4,6 +4,7 @@
  */
 
 import Nav from './Nav';
+import ErrorBoundary from './ErrorBoundary';
 import { useAuth, Authorization } from '../authorization';
 import { User } from '../db/models';
 import db from '../db/client';
@@ -17,14 +18,14 @@ import NProgress from 'nprogress'; //progress bar
 import Head from 'next/head';
 
 interface LayoutProps extends Props, Parent {
-    authorization?: Authorization
-    author?: User
-    authorLoaded?: boolean
-    title?: string
-    className?: string
-    noPadding?: boolean
-    gapis?: string[]
-    onGapisLoad?: () => void
+    authorization?: Authorization;
+    author?: User;
+    authorLoaded?: boolean;
+    title?: string;
+    className?: string;
+    noPadding?: boolean;
+    gapis?: string[];
+    onGapisLoad?: () => void;
 }
 
 const developerKey = process.env.NEXT_PUBLIC_API_KEY;
@@ -55,7 +56,9 @@ export default function Layout(props: LayoutProps){
     }
 
     useEffect(() => {
-        if(!loading && !initialized && (props.authorization != Authorization.SHARED || (props.author && props.authorLoaded))){
+        if(!loading && initialized === false && (props.authorization != Authorization.SHARED || (props.author && props.authorLoaded))){
+            setInitialized(null);
+
             const authState = useAuth(props.authorization, session, props.author);
 
             if(session && !session.firebaseAuth){
@@ -78,17 +81,27 @@ export default function Layout(props: LayoutProps){
         }
 
         //set progress bar state
-        loading ? NProgress.start() : NProgress.done();
-    }, [loading, props.author, props.authorLoaded]);
+        if(initialized === false || loading) NProgress.start();
+        if(initialized) NProgress.done();
+    }, [loading, props.author, props.authorLoaded, initialized]);
+
+    const head = <Head><title>{props.title || 'MyPortfolio'}</title></Head>;
 
     if(loading){
-        return (<></>);
+        return head;
+    }else if(!initialized){
+        return (
+            <ErrorBoundary>
+                {head}
+                <Nav/>
+                <div style={{height: '50vh'}}>
+                </div>
+            </ErrorBoundary>
+        );
     }else{
         return (
-            <>
-                <Head>
-                    <title>{props.title || 'MyPortfolio'}</title>
-                </Head>
+            <ErrorBoundary>
+                {head}
                 <Nav/>
                 <div
                     className={classNames(
@@ -99,7 +112,7 @@ export default function Layout(props: LayoutProps){
                 >
                     {props.children}
                 </div>
-            </>
+            </ErrorBoundary>
         );
     }
 }

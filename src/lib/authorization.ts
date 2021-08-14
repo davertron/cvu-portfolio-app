@@ -4,8 +4,8 @@ import { Session } from 'next-auth';
 import { signOut } from 'next-auth/client';
 
 export interface AuthState {
-    success: boolean
-    redirect?: string
+    success: boolean;
+    redirect?: string;
 }
 
 export enum Authorization {

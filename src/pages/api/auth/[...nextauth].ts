@@ -80,15 +80,24 @@ export default NextAuth({
                 user = new User({
                     name: session.user.name,
                     email: session.user.email.toLowerCase().trim(),
-                    bio_pic: session.user.image as string
-                })
+                    bio_pic: {url: session.user.image as string, name: null},
+                    image: session.user.image
+                });
 
                 await db.users.doc(user.id).set(user);
             }else{
                 user = snapshot.docs[0].data();
+
+                // Update avatar if necessary
+                if(user.image != session.user.image){
+                    user = user.with({image: session.user.image});
+                    await db.users.doc(user.id).set(user);
+                }
             }
 
-            session.firebaseToken = await db.createToken(user.id, {shared_with: user.shared_with});
+            session.firebaseToken = await db.createToken(user.id, {
+                role: user.role
+            });
 
             session.user.id = user.id;
             session.user.role = user.role;

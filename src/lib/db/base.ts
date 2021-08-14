@@ -5,6 +5,7 @@ import firebase from 'firebase/app';
 import 'firebase/firestore';
 import 'firebase/auth';
 import 'firebase/storage';
+//import 'firebase/rules-unit-testing';
 
 class Converter<Schema extends Model> {
     constructor(private SchemaType){ }
@@ -45,10 +46,15 @@ export default class Db {
     store: any;
     auth: any;
 
-    constructor(app: any){
+    constructor(app: any, useEmulator?: boolean){
         this.app = app;
-        this.store = app.firestore();
+
+        const store = app.firestore();
+
+        if(useEmulator) store.useEmulator('localhost', 8080);
+
         this.auth = app.auth();
+        this.store = store;
 
         const cf = new CollectionFactory(this.store);
 

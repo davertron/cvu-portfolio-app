@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 
 // Schema definitions
-import { dbid, Timestamp } from './util';
+import { dbid, now, Timestamp } from './util';
 
 // Annotation to prevent field from being saved to Firestore
 function NonSerializable(target, propertyKey){
@@ -100,9 +100,13 @@ export class Permission extends Model {
 }
 
 export class User extends Model {
-    email: string;
-    name: string;
-    bio_pic: string;
+    email?: string;
+    name?: string;
+    bio_pic?: {
+        url: string;
+        name: string;
+    };
+    image?: string;
     bio?: string = '';
     role?: UserRole = UserRole.STUDENT;
     shared_with?: Permission[] = [];
@@ -208,13 +212,14 @@ export class Post extends Model {
         return super.with(params);
     }
 
-    constructor(params: Partial<Post>){
+    constructor(params: Partial<Post>, creating?: boolean){
         super();
-        this.concat(params);
+        creating ? this.concat({...params, created_at: now()}) : this.concat(params);
     }
 }
 
 export class Comment extends Model {
+    post_author_id: string;
     author_id: string;
     created_at: Timestamp;
     body?: string = '';
@@ -231,8 +236,8 @@ export class Comment extends Model {
         return super.with(params);
     }
 
-    constructor(params: Partial<Comment>){
+    constructor(params: Partial<Comment>, creating?: boolean){
         super();
-        this.concat(params);
+        creating ? this.concat({...params, created_at: now()}) : this.concat(params);
     }
 }

@@ -102,15 +102,17 @@ export default function Shared(){
                     Object.keys(users).length > 0 ?
                         Object.keys(users).map(uid => (
                             <div key={uid}>
-                                <div className="m-4 bg-gray-100 shadow rounded w-56 bg-cover backdrop-blur" style={{backgroundImage: `url(${users[uid].bio_pic})`}}>
-                                    <div className="bg-indigo-700 bg-opacity-80 rounded text-white py-1 px-3">
-                                        <p className="py-2 font-bold text-lg">{users[uid].name}</p>
+                                <div className="m-4 bg-gray-100 shadow rounded bg-cover backdrop-blur" style={{backgroundImage: `url(${users[uid].bio_pic.url})`}}>
+                                    <div className="bg-indigo-700 bg-opacity-80 rounded-md text-white py-3 px-5">
+                                        <div className="pt-1 pb-3 font-bold text-lg flex items-center">
+                                            <img src={users[uid].image} className="flex-shrink-0 h-7 w-7 mr-3 rounded-full"/>
+                                            <p>{users[uid].name}</p>
+                                        </div>
                                         <p className="py-1">{users[uid].role.toTitleCase()}</p>
-                                        <div className="py-2 flex text-sm">
+                                        <div className="py-2 flex text-sm justify-between">
                                             <Cta
                                                 icon={<MdPersonOutline/>}
                                                 href={'/users/' + uid}
-                                                className="mr-3"
                                                 customFont
                                                 invert
                                             >
@@ -164,7 +166,7 @@ export default function Shared(){
 }
 
 interface SwitchProps extends ButtonProps {
-    active?: boolean
+    active?: boolean;
 }
 
 function SwitchButton(props: SwitchProps){

@@ -52,7 +52,7 @@ export default function Nav(){
                                     }
                                 </Disclosure.Button>
                             </div>
-                            <div className="flex items-center justify-end sm:items-stretch sm:justify-start">
+                            <div className="flex items-center justify-end md:items-stretch md:justify-start">
                                 <div className="flex-shrink-0 flex items-center">
                                     <Link href="/">
                                         <a className="block flex flex-row items-center">
@@ -68,7 +68,7 @@ export default function Nav(){
                                     </Link>
                                 </div>
                             </div>
-                            <div className="flex-1 flex items-center justify-center sm:items-stretch sm:justify-end">
+                            <div className="flex-1 flex items-center justify-center md:items-stretch md:justify-end">
                                 <div className="hidden sm:block sm:ml-6">
                                     <div className="flex space-x-4">
                                         {nav.map((item) => (
@@ -83,7 +83,7 @@ export default function Nav(){
                         </div>
                     </div>
 
-                    <Disclosure.Panel className="sm:hidden">
+                    <Disclosure.Panel className="md:hidden">
                         <div className="px-2 pt-2 pb-3 space-y-1">
                             {nav.map(item => (
                                 <DropdownLink
@@ -100,14 +100,14 @@ export default function Nav(){
 }
 
 interface LinkProps extends Props, Interactive, Parent {
-    href?: string
-    display?: string
-    name?: Child
-    important?: boolean
-    img?: string
-    alt?: string
-    cta?: boolean
-    dropdown?: LinkProps[]
+    href?: string;
+    display?: string;
+    name?: Child;
+    important?: boolean;
+    img?: string;
+    alt?: string;
+    cta?: boolean;
+    dropdown?: LinkProps[];
 }
 
 function NavLink(props: LinkProps){
@@ -121,13 +121,12 @@ function NavLink(props: LinkProps){
                     <img
                         src={props.img}
                         className={classNames(
-                            'h-8 w-8 rounded-full align-middle cursor-pointer',
-                            active && 'border border-indigo-400'
+                            'h-8 w-8 rounded-full align-middle cursor-pointer'
                         )}
                         alt={props.alt}
                     />
                 </Menu.Button>
-                <Menu.Items className="origin-top-right absolute right-0 mt-11 w-48 rounded border border-gray-200 bg-white shadow focus:outline-none z-10">
+                <Menu.Items className="origin-top-right absolute right-0 mt-11 w-48 rounded border border-gray-200 bg-white shadow-lg focus:outline-none z-20">
                     {props.dropdown.map(option => (
                         <Menu.Item key={option.children as string}>
                             {_e => (

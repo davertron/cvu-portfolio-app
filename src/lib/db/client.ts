@@ -20,7 +20,7 @@ class ClientDb extends Db {
     auth: Auth;
 
     constructor(app: App){
-        super(app);
+        super(app, process.env.NEXT_PUBLIC_NODE_ENV === 'development');
 
         this.app = app;
         this.auth = app.auth();

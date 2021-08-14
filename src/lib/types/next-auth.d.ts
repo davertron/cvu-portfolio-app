@@ -1,4 +1,4 @@
-import { UserRole } from '../db';
+import { UserRole } from '../db/models';
 import auth from 'next-auth';
 
 declare module 'next-auth' {
@@ -9,7 +9,10 @@ declare module 'next-auth' {
             image: string;
             name: string;
             email: string;
-            bio_pic: string;
+            bio_pic: {
+                url: string;
+                name: string;
+            };
             role: UserRole;
         },
         accessToken: string;

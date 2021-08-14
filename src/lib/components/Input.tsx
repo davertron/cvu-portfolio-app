@@ -10,21 +10,21 @@ export type StateSetter<T = any> = (currentState: T) => T;
 export type ModelSetter<T extends Model = any> = Dispatch<SetStateAction<T>>;
 
 interface InputProps extends Props, Parent {
-    type: string
-    name?: string
-    listClassname?: string
-    options?: string[]
-    value?: any
-    onBlur?: FormEventHandler
-    onFocus?: FormEventHandler
-    onInput?: FormEventHandler
-    onError?: FormEventHandler
-    setForm?: ModelSetter
-    setFiles?: StateSetter
-    placeholder?: string
-    customBg?: boolean
-    noPadding?: boolean
-    customRounding?: boolean
+    type: string;
+    name?: string;
+    listClassname?: string;
+    options?: string[];
+    value?: any;
+    onBlur?: FormEventHandler;
+    onFocus?: FormEventHandler;
+    onInput?: FormEventHandler;
+    onError?: FormEventHandler;
+    setForm?: ModelSetter;
+    setFiles?: StateSetter;
+    placeholder?: string;
+    customBg?: boolean;
+    noPadding?: boolean;
+    customRounding?: boolean;
 }
 
 function defaultHandler(setForm: ModelSetter) : FormEventHandler {
@@ -194,6 +194,7 @@ export default function Input(props: InputProps){
                 onBlur={props.onBlur}
                 onFocus={props.onFocus}
                 onInput={handler}
+                autoComplete={'off'}
                 name={props.name}
                 placeholder={props.placeholder}
                 id={props.id}

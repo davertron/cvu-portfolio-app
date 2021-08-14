@@ -9,28 +9,28 @@ import { MouseEventHandler } from 'react';
 import Link from 'next/link';
 
 export interface StaticButtonProps extends Props, Parent {
-    icon?: Child
-    href?: string
-    target?: string
-    center?: boolean
-    customRounding?: boolean
-    customPadding?: boolean
-    flexReverse?: boolean
-    disabled?: boolean
+    icon?: Child;
+    href?: string;
+    target?: string;
+    center?: boolean;
+    customRounding?: boolean;
+    customPadding?: boolean;
+    flexReverse?: boolean;
+    disabled?: boolean;
 }
 
 export interface ButtonProps extends StaticButtonProps, Interactive { }
 
 interface CtaProps extends ButtonProps {
-    gradient?: boolean
-    invert?: boolean
-    customBg?: boolean
-    customFont?: boolean
+    gradient?: boolean;
+    invert?: boolean;
+    customBg?: boolean;
+    customFont?: boolean;
 }
 
 interface OutlineProps extends ButtonProps {
-    color: string
-    invert?: boolean
+    color: string;
+    invert?: boolean;
 }
 
 export default function Button(props: ButtonProps){

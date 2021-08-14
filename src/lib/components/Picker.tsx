@@ -5,11 +5,11 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 
 interface PickerProps extends Parent {
-    scope: string[]
-    onInput: Function
-    viewId: string
-    multiple?: boolean
-    onAuthError?: Function
+    scope: string[];
+    onInput: Function;
+    viewId: string;
+    multiple?: boolean;
+    onAuthError?: Function;
 }
 
 const developerKey = process.env.NEXT_PUBLIC_API_KEY;

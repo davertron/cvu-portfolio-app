@@ -50,7 +50,7 @@ export default class DriveDb {
             try {
                 return await cb(a, ...b);
             }catch(e){
-                if(e.message.trim() === 'OAuth session is no longer valid'){
+                if(e.message?.trim?.() === 'OAuth session is no longer valid'){
                     signOut();
                 }
 
@@ -67,12 +67,14 @@ export default class DriveDb {
                 fields: 'name,iconLink,thumbnailLink,webViewLink,description'
             });
             const metadata = snapshot.result;
+            // Increase default thumbnail size
+            const thumbnail = metadata.thumbnailLink ? metadata.thumbnailLink.replace('s220', 's500') : '';
 
             if(metadata){
                 return artifact.with({
                     title: metadata.name,
                     icon: metadata.iconLink,
-                    thumbnail: metadata.thumbnailLink,
+                    thumbnail: thumbnail,
                     web_view: metadata.webViewLink,
                     description: metadata.description || ''
                 });
@@ -121,7 +123,7 @@ export default class DriveDb {
 
         remove: DriveDb.exec_safe(async (artifact: Artifact) => {
             await this.artifacts.save(artifact.with({awaiting_delete: true}));
-        }),
+        })
 
     };
 
@@ -174,14 +176,10 @@ export default class DriveDb {
             ];
         }),
 
-        remove: DriveDb.exec_safe(async ([collection, artifacts]: [FileCollection, Artifact[]]) => {
+        remove: DriveDb.exec_safe(async ([collection, _artifacts]: [FileCollection, Artifact[]]) => {
             await this.client.drive.files.delete({
                 fileId: collection.drive_id
             });
-
-            await Promise.all(artifacts.map(
-                async artifact => await this.artifacts.remove(artifact)
-            ));
         }),
 
         share: DriveDb.exec_safe(async ([collection, artifacts]: [FileCollection, Artifact[]], permission: Permission) => {

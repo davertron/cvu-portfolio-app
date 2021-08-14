@@ -7,7 +7,6 @@ import { Authorization } from '../../lib/authorization';
 import { dateString, classNames, createdAt, warnIfUnsaved, loadStarted } from '../../lib/util';
 import db from '../../lib/db/client';
 import { Post, FileCollection, User, Comment } from '../../lib/db/models';
-import { now } from '../../lib/db/util';
 import { useSession } from 'next-auth/client';
 import { useEffect, useState } from 'react';
 import {
@@ -198,6 +197,7 @@ export default function Blog(props: BlogProps){
             post={post}
             removePost={removePost(post.id)}
             setPost={setPost(post.id)}
+            setError={setError}
             collections={collections}
             validate={validate}
             editing={post.awaiting_save}
@@ -215,7 +215,7 @@ export default function Blog(props: BlogProps){
             noPadding
         >
             <div className="flex flex-col items-center bg-gradient-to-r from-blue-300 to-indigo-700 w-full py-10 text-white">
-                <h1 className="font-bold text-3xl text-center my-4">{user.name && !owned ? user.name + "'s Blog" : 'Blog'}</h1>
+                <h1 className="font-bold text-3xl text-center my-4">{user?.name && !owned ? user.name + "'s Blog" : 'Blog'}</h1>
                 <div className={classNames(
                     'flex items-center text-lg text-gray-100 my-4 rounded transition-all',
                     searchFocused && 'shadow-lg'
@@ -261,7 +261,7 @@ export default function Blog(props: BlogProps){
                         )}
                         id="search-icon"
                     >
-                        <Button customPadding onClick={() => setSearch({term: ''})} className={classNames(search.term.trim() == '' && 'opacity-0')}>
+                        <Button customPadding onClick={() => setSearch({term: ''})} className={classNames(search.term?.trim?.() == '' && 'opacity-0')}>
                             <MdClose
                                 size="1.3em"
                                 className="text-indigo-200 hover:text-white"
@@ -281,9 +281,9 @@ export default function Blog(props: BlogProps){
                             onClick={() => setPosts(currentPosts => [
                                 ...currentPosts,
                                 new Post({
-                                    author_id: session.user.id,
+                                    author_id: session?.user?.id,
                                     awaiting_save: true
-                                })
+                                }, true)
                             ])}
                             customPadding
                             customBg
@@ -319,7 +319,7 @@ export default function Blog(props: BlogProps){
                                     selected={filters.indexOf(cid) != -1}
                                     gradient
                                 >
-                                    {collections[cid].title}
+                                    {collections[cid]?.title}
                                 </Tag>
                             ))
                             :
@@ -339,13 +339,14 @@ export default function Blog(props: BlogProps){
 }
 
 interface PostProps {
-    post: Post
-    setPost: (cb: StateSetter<Post>) => void
-    removePost: () => void
-    collections: Map<string, FileCollection>
-    validate: (post: Post) => boolean
-    editing?: boolean
-    locked?: boolean
+    post: Post;
+    setPost: (cb: StateSetter<Post>) => void;
+    setError: (message: string) => void;
+    removePost: () => void;
+    collections: Map<string, FileCollection>;
+    validate: (post: Post) => boolean;
+    editing?: boolean;
+    locked?: boolean;
 }
 
 function BlogPost(props: PostProps){
@@ -368,28 +369,81 @@ function BlogPost(props: PostProps){
 
     const validate = (comment: Comment) => comment.body && comment.body.trim() != '';
 
-    async function getData(pid: string){
-        const commentSnapshot = await db.comments(pid).get();
-        const dbComments = commentSnapshot.docs.map(doc => doc.data());
+    async function like(){
+        try {
+            if(session){
+                const updatedLikes = post.likes.indexOf(session?.user?.id) == -1 ?
+                    [...post.likes, session?.user?.id] : post.likes.filter(uid => uid != session?.user?.id);
 
-        const dbUsers = new Map();
+                await db.posts.doc(post.id).set(post.with({
+                    likes: updatedLikes
+                }));
 
-        for(let comment of dbComments){
-            const doc = await db.users.doc(comment.author_id).get();
-
-            if(doc.exists){
-                const user = doc.data();
-
-                dbUsers[user.id] = {
-                    bio_pic: user.bio_pic,
-                    name: user.name
-                };
+                props.setPost(currentPost => currentPost.with({likes: updatedLikes}));
             }
+        }catch(_e){
+            props.setError('There was an error updating this post');
         }
+    }
 
-        setComments(dbComments);
-        setUsers(dbUsers);
-        setDbLoaded(true);
+    async function save(){
+        try {
+            if(post.awaiting_save){
+                props.setPost(currentPost => currentPost.with({
+                    awaiting_save: false
+                }));
+            }
+
+            setEditing(false);
+
+            await db.posts.doc(post.id).set(post);
+        }catch(_e){
+            props.setError('There was an error saving your post');
+        }
+    }
+
+    async function cancel(){
+        try {
+            if(post.awaiting_save){
+                props.removePost();
+                window.onbeforeunload = null;
+            }else{
+                const doc = await db.posts.doc(post.id).get();
+                props.setPost(_currentPost => doc.data());
+            }
+
+            setEditing(false);
+        }catch(_e){
+            props.setError('There was an error resetting your post');
+        }
+    }
+
+    async function getData(pid: string){
+        try {
+            const commentSnapshot = await db.comments(pid).get();
+            const dbComments = commentSnapshot.docs.map(doc => doc.data());
+
+            const dbUsers = new Map();
+
+            for(let comment of dbComments){
+                const doc = await db.users.doc(comment.author_id).get();
+
+                if(doc.exists){
+                    const user = doc.data();
+
+                    dbUsers[user.id] = {
+                        image: user.image,
+                        name: user.name
+                    };
+                }
+            }
+
+            setComments(dbComments);
+            setUsers(dbUsers);
+            setDbLoaded(true);
+        }catch(_e){
+            props.setError('There was an error retrieving comments');
+        }
     }
 
     useEffect(() => {
@@ -450,13 +504,13 @@ function BlogPost(props: PostProps){
                                     }}
                                     selected={post.tags.indexOf(cid) != -1}
                                 >
-                                    {props.collections[cid].title}
+                                    {props.collections[cid]?.title}
                                 </Tag>
                             ))
                             :
                             post.tags.map(cid => (
                                 <Tag className="my-2 mr-4" href={'/collections/' + cid} key={post.id + cid} active>
-                                    {props.collections[cid].title}
+                                    {props.collections[cid]?.title}
                                 </Tag>
                             ))
                         }
@@ -468,37 +522,14 @@ function BlogPost(props: PostProps){
                     className="mr-4"
                     disabled={!props.validate(post)}
                     icon={<MdDone/>}
-                    onClick={() => {
-                        const created_at = now();
-
-                        if(post.awaiting_save){
-                            props.setPost(currentPost => currentPost.with({
-                                awaiting_save: false,
-                                created_at
-                            }));
-                        }
-
-                        setEditing(false);
-
-                        db.posts.doc(post.id).set(post);
-                    }}
+                    onClick={save}
                 >
                     Save
                 </Cta>
                 <OutlineButton
                     color="indigo-500"
                     icon={<MdClose/>}
-                    onClick={async () => {
-                        if(post.awaiting_save){
-                            props.removePost();
-                            window.onbeforeunload = null;
-                        }else{
-                            const doc = await db.posts.doc(post.id).get();
-                            props.setPost(_currentPost => doc.data());
-                        }
-
-                        setEditing(false);
-                    }}
+                    onClick={cancel}
                 >
                     Cancel
                 </OutlineButton>
@@ -543,14 +574,14 @@ function BlogPost(props: PostProps){
             }
             {(comments.length > 0 || props.locked) && <div className="mt-3 mb-1">
                 {comments.sort(createdAt).map(comment => {
-                    const showInputs = (comment.awaiting_save || editingId == comment.id) && comment.author_id == session.user.id;
+                    const showInputs = (comment.awaiting_save || editingId == comment.id) && comment.author_id == session?.user?.id;
                     const author = users[comment.author_id] || {};
 
                     return (
                         <div className="flex py-3" key={comment.id}>
                             <div
                                 className="rounded-full h-10 w-10 flex-shrink-0 bg-cover"
-                                style={{backgroundImage: `url(${author.bio_pic})`}}
+                                style={{backgroundImage: `url(${author.image})`}}
                             />
                             <div className="flex flex-col justify-center flex-grow ml-3 text-gray-500">
                                 {showInputs ?
@@ -562,14 +593,11 @@ function BlogPost(props: PostProps){
                                                 className="mr-3"
                                                 icon={comment.awaiting_save ? <MdChatBubbleOutline/> : <MdDone/>}
                                                 onClick={() => {
-                                                    const created_at = now();
-
-                                                    db.comments(post.id).doc(comment.id).set(comment.with({created_at}));
+                                                    db.comments(post.id).doc(comment.id).set(comment);
 
                                                     if(comment.awaiting_save){
                                                         setComment(comment.id)(currentComment => currentComment.with({
-                                                            awaiting_save: false,
-                                                            created_at
+                                                            awaiting_save: false
                                                         }));
                                                     }else{
                                                         setEditingId(null);
@@ -601,7 +629,7 @@ function BlogPost(props: PostProps){
                                         </div>
                                         <div className="flex justify-between w-full">
                                             <p>{comment.body}</p>
-                                            {comment.author_id == session.user.id && <div className="flex items-start text-gray-400">
+                                            {comment.author_id == session?.user?.id && <div className="flex items-start text-gray-400">
                                                 <Button
                                                     className="mx-1"
                                                     onClick={() => setEditingId(comment.id)}
@@ -636,14 +664,15 @@ function BlogPost(props: PostProps){
                                 if(session && !loading){
                                     setUsers(currentUsers => ({
                                         ...currentUsers,
-                                        [session.user.id]: session.user
+                                        [session.user?.id]: session.user
                                     }));
 
                                     setComments(currentComments => [
-                                        new Post({
+                                        new Comment({
+                                            post_author_id: post.author_id,
                                             author_id: session.user.id,
                                             awaiting_save: true
-                                        }),
+                                        }, true),
                                         ...currentComments
                                     ]);
                                 }
@@ -655,20 +684,9 @@ function BlogPost(props: PostProps){
                     <div className="flex flex-grow justify-end items-center">
                         <Button
                             className="text-xl text-red-500"
-                            disabled={session.user.id == post.author_id}
-                            onClick={async () => {
-                                if(session){
-                                    const updatedLikes = post.likes.indexOf(session.user.id) == -1 ?
-                                        [...post.likes, session.user.id] : post.likes.filter(uid => uid != session.user.id);
-
-                                    await db.posts.doc(post.id).set(post.with({
-                                        likes: updatedLikes
-                                    }));
-
-                                    props.setPost(currentPost => currentPost.with({likes: updatedLikes}));
-                                }
-                            }}
-                            icon={session && post.likes.indexOf(session.user.id) == -1 ? <MdFavoriteBorder/> : <MdFavorite/>}
+                            disabled={session?.user?.id == post.author_id}
+                            onClick={like}
+                            icon={session && post.likes.indexOf(session?.user?.id) == -1 ? <MdFavoriteBorder/> : <MdFavorite/>}
                             customPadding
                             flexReverse
                         >

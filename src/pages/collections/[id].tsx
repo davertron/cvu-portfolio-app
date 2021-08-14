@@ -17,8 +17,8 @@ import { CgFeed } from 'react-icons/cg';
 import NProgress from 'nprogress';
 
 interface CollectionProps {
-    creating?: boolean
-    authorization?: Authorization
+    creating?: boolean;
+    authorization?: Authorization;
 }
 
 export default function Collection(props: CollectionProps){
@@ -40,7 +40,7 @@ export default function Collection(props: CollectionProps){
     const router = useRouter();
     const { id } = router.query;
     const showInputs = props.creating || editing;
-    const owned = session && collection.author_id == session.user.id
+    const owned = session && (collection.author_id == session.user.id || props.creating);
 
     const removeArtifact = (aid: string) => {
         return () => {
@@ -55,6 +55,34 @@ export default function Collection(props: CollectionProps){
     }
 
     const validate = (collection: FileCollection, artifacts: Artifact[]) => !!collection.title;
+
+    async function createArtifact(picked){
+        try {
+            if(picked.docs){
+                let updated = [];
+                const drive = await db.drive(window.gapi.client);
+
+                for(let i = 0; i < picked.docs.length; i++){
+                    const doc = picked.docs[i];
+
+                    if(artifacts.filter(a => a.drive_id == doc.id).length == 0){ // Make sure document is not a duplicate
+                        let artifact = new Artifact({
+                            author_id: session.user.id,
+                            drive_id: doc.id
+                        });
+
+                        artifact = await drive.artifacts.load(artifact);
+
+                        updated.push(artifact);
+                    }
+                }
+
+                setArtifacts(currentArtifacts => [...currentArtifacts, ...updated]);
+            }
+        }catch(e){
+            setError('There was an error adding the artifact');
+        }
+    }
 
     async function getData(cid?: string){
         try {
@@ -103,8 +131,7 @@ export default function Collection(props: CollectionProps){
             setArtifacts(driveArtifacts);
 
             setDriveLoaded(true);
-        }catch(e){
-            console.log(e)
+        }catch(_e){
             setError('There was an error syncing with Google Drive')
         }
     }
@@ -140,11 +167,7 @@ export default function Collection(props: CollectionProps){
                 }));
                 setUser(currentUser => currentUser.with({shared_with: driveSharedWith}));
 
-                setArtifacts([]);
-                setCollection(new FileCollection({}));
-                setSaveDisabled(false);
                 NProgress.done();
-
                 router.push('/collections/' + driveCollection.id);
             }else{
                 db.file_collections.doc(id as string).set(driveCollection);
@@ -161,12 +184,14 @@ export default function Collection(props: CollectionProps){
 
                 setArtifacts(currentArtifacts => currentArtifacts.filter(artifact => !artifact.awaiting_delete));
                 setEditing(false);
-                setSaveDisabled(false);
-                NProgress.done();
             }
         }catch(e){
             setError(`An error ${e.status ? `(${e.status})` : ''} was encountered while saving this collection`);
+        }finally {
+            setSaveDisabled(false);
+            NProgress.done();
         }
+
     }
 
     useEffect(() => {
@@ -202,7 +227,7 @@ export default function Collection(props: CollectionProps){
                                         type="datalist"
                                         placeholder="Collection Title"
                                         className="bg-gray-300 bg-opacity-10 placeholder-gray-100 text-white focus:shadow-xl text-2xl font-bold"
-                                        listClassname="bg-purple-400 bg-opacity-40 text-white backdrop-blur shadow-lg"
+                                        listClassname="bg-purple-400 bg-opacity-60 text-white backdrop-blur shadow-lg"
                                         setForm={setCollection}
                                         value={collection.title || ''}
                                         name="title"
@@ -226,29 +251,7 @@ export default function Collection(props: CollectionProps){
                             {(showInputs && !saveDisabled) ?
                                 <Picker
                                     scope={[]}
-                                    onInput={async picked => {
-                                        if(picked.docs){
-                                            let updated = [];
-                                            const drive = await db.drive(window.gapi.client);
-
-                                            for(let i = 0; i < picked.docs.length; i++){
-                                                const doc = picked.docs[i];
-
-                                                if(artifacts.filter(a => a.drive_id == doc.id).length == 0){ // Make sure document is not a duplicate
-                                                    let artifact = new Artifact({
-                                                        author_id: session.user.id,
-                                                        drive_id: doc.id
-                                                    });
-
-                                                    artifact = await drive.artifacts.load(artifact);
-
-                                                    updated.push(artifact);
-                                                }
-                                            }
-
-                                            setArtifacts(currentArtifacts => [...currentArtifacts, ...updated]);
-                                        }
-                                    }}
+                                    onInput={createArtifact}
                                     viewId="DOCS"
                                     multiple
                                 >
@@ -334,21 +337,26 @@ export async function getServerSideProps(ctx){
 }
 
 interface ArtifactProps extends Interactive {
-    artifact: Artifact
-    setArtifact: (cb: StateSetter) => void
-    removeArtifact: () => void
-    editing?: boolean
-    apisLoaded?: boolean
+    artifact: Artifact;
+    setArtifact: (cb: StateSetter) => void;
+    removeArtifact: () => void;
+    editing?: boolean;
+    apisLoaded?: boolean;
 }
 
 function CollectionArtifact(props: ArtifactProps){
+    const [session, loading] = useSession();
     const [pinned, setPinned] = useState(false);
+    //'https://docs.google.com/feeds/vt?gd=true&id=1ldN3S0Uo52ANRHZL6vb4AP2t6Td2f69tDo1VmdVCyrg&v=28&s=AMedNnoAAAAAYRBMKYmd7zE7AiRRNDrKmXU1qwGkFymR&sz=s500'
     const [thumbnail, setThumbnail] = useState(null);
     const artifact = props.artifact;
 
-    async function loadThumbnail(){
+    async function loadThumbnail(accessToken: string){
         try {
-            const res = await window.gapi.client.request({path: artifact.thumbnail});
+            const res = await fetch(artifact.thumbnail, {
+                mode: 'cors',
+                headers: {'Authorization': 'Bearer ' + accessToken}
+            });
             const data = await res.blob();
             const localURL = URL.createObjectURL(data);
 
@@ -358,29 +366,17 @@ function CollectionArtifact(props: ArtifactProps){
         }
     }
 
-    async function _minimalReproduction(){
-        try {
-            const client = window.gapi.client;
-            const snapshot = await client.drive.files.get({
-                fileId: artifact.drive_id,
-                fields: 'thumbnailLink'
-            });
-
-            const thumbnailRes = await client.request({
-                path: snapshot.result.thumbnailLink
-            });
-
-        }catch(e){
-            console.log('Minimal reprod failed', e);
-        }
-    }
-
     useEffect(() => {
         if(props.apisLoaded && artifact.thumbnail){
-            //loadThumbnail();
-            _minimalReproduction();
+            // Wait until window OAuth token is set to load thumbnail image
+            setThumbnail(artifact.thumbnail);
+
+            // This doesn't work yet... still trying to figure out why
+            /*if(session && !loading){
+                loadThumbnail(session.accessToken);
+            }*/
         }
-    }, [props.apisLoaded, artifact]);
+    }, [props.apisLoaded, artifact, session, loading]);
 
     return (
         <div key={artifact.id} className="m-4 w-80">
@@ -396,7 +392,7 @@ function CollectionArtifact(props: ArtifactProps){
                     {(props.editing || artifact.description != '') && <div
                         className={classNames(
                             'transition-all p-4 bg-white h-full w-full absolute text-gray-500 rounded-t',
-                            props.editing || pinned ? 'opacity-100 bg-opacity-90' : 'opacity-0 bg-opacity-0 group-hover:bg-opacity-90 group-hover:opacity-100'
+                            props.editing || pinned ? 'opacity-100 bg-opacity-70' : 'opacity-0 bg-opacity-0 group-hover:bg-opacity-70 group-hover:opacity-100'
                         )}
                     >
                         <div className="flex flex-row items-start">
@@ -406,7 +402,7 @@ function CollectionArtifact(props: ArtifactProps){
                                         type="textarea"
                                         placeholder="Enter artifact description"
                                         name="description"
-                                        className="h-full flex-grow"
+                                        className="h-full flex-grow bg-transparent"
                                         value={artifact.description}
                                         setForm={props.setArtifact}
                                         customBg

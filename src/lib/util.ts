@@ -4,11 +4,11 @@ import { Session } from 'next-auth';
 
 declare global {
     interface Array<T> {
-        separate(predicate: (elem: T) => boolean): [T[], T[]]
+        separate(predicate: (elem: T) => boolean): [T[], T[]];
     }
 
     interface String {
-        toTitleCase(): String
+        toTitleCase(): String;
     }
 }
 

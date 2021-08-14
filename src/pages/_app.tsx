@@ -6,16 +6,16 @@ import Head from 'next/head';
 
 declare global {
     interface Window {
-        google: any
-        gapi: any
+        google: any;
+        gapi: any;
     }
 
     interface EventTarget {
-        value: any
-        getAttribute: (key: string) => any
-        name: string
-        id: string
-        type: string
+        value: any;
+        getAttribute: (key: string) => any;
+        name: string;
+        id: string;
+        type: string;
     }
 }
 
