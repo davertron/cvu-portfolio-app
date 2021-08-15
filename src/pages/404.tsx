@@ -1,5 +1,3 @@
-import { HiOutlineExclamation } from 'react-icons/hi';
-
 interface Custom404Props {
     message?: string;
 }

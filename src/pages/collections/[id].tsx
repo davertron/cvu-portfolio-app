@@ -40,7 +40,7 @@ export default function Collection(props: CollectionProps){
     const router = useRouter();
     const { id } = router.query;
     const showInputs = props.creating || editing;
-    const owned = session && (collection.author_id == session.user.id || props.creating);
+    const owned = session && (collection?.author_id == session.user?.id || props.creating);
 
     const removeArtifact = (aid: string) => {
         return () => {
@@ -54,7 +54,7 @@ export default function Collection(props: CollectionProps){
         }
     }
 
-    const validate = (collection: FileCollection, artifacts: Artifact[]) => !!collection.title;
+    const validate = (collection: FileCollection, artifacts: Artifact[]) => !!collection?.title;
 
     async function createArtifact(picked){
         try {
@@ -229,7 +229,7 @@ export default function Collection(props: CollectionProps){
                                         className="bg-gray-300 bg-opacity-10 placeholder-gray-100 text-white focus:shadow-xl text-2xl font-bold"
                                         listClassname="bg-purple-400 bg-opacity-60 text-white backdrop-blur shadow-lg"
                                         setForm={setCollection}
-                                        value={collection.title || ''}
+                                        value={collection?.title || ''}
                                         name="title"
                                         options={[
                                             'Creative and Practical Problem Solving',
@@ -242,8 +242,8 @@ export default function Collection(props: CollectionProps){
                                 </div>
                                 :
                                 <div className="text-center">
-                                    <h1 className="font-bold text-2xl py-2">{collection.title}</h1>
-                                    {(!owned && user.name) && <h2 className="text-gray-100 text-lg py-2">{user.name}</h2>}
+                                    <h1 className="font-bold text-2xl py-2">{collection?.title}</h1>
+                                    {(!owned && user?.name) && <h2 className="text-gray-100 text-lg py-2">{user.name}</h2>}
                                 </div>
                             }
                         </div>
@@ -261,10 +261,10 @@ export default function Collection(props: CollectionProps){
                                 </Picker>
                                 :
                                 <>
-                                    <Cta icon={<MdOpenInNew/>} href={collection.web_view || '#'} target="_blank" className="mx-2" invert>
+                                    <Cta icon={<MdOpenInNew/>} href={collection?.web_view || '#'} target="_blank" className="mx-2" invert>
                                         Open in drive
                                     </Cta>
-                                    <Cta icon={<CgFeed/>} href={'/blog/' + collection.author_id + '?tags=' + collection.id} className="mx-2" invert>
+                                    <Cta icon={<CgFeed/>} href={'/blog/' + collection?.author_id + '?tags=' + collection?.id} className="mx-2" invert>
                                         Tagged posts
                                     </Cta>
                                 </>
@@ -379,7 +379,7 @@ function CollectionArtifact(props: ArtifactProps){
     }, [props.apisLoaded, artifact, session, loading]);
 
     return (
-        <div key={artifact.id} className="m-4 w-80">
+        <div key={artifact?.id} className="m-4 w-80">
             <div className="rounded shadow">
                 <div
                     className="transition-all rounded-t relative group"
@@ -389,7 +389,7 @@ function CollectionArtifact(props: ArtifactProps){
                         minHeight: '200px'
                     }}
                 >
-                    {(props.editing || artifact.description != '') && <div
+                    {(props.editing || artifact?.description != '') && <div
                         className={classNames(
                             'transition-all p-4 bg-white h-full w-full absolute text-gray-500 rounded-t',
                             props.editing || pinned ? 'opacity-100 bg-opacity-70' : 'opacity-0 bg-opacity-0 group-hover:bg-opacity-70 group-hover:opacity-100'
@@ -403,7 +403,7 @@ function CollectionArtifact(props: ArtifactProps){
                                         placeholder="Enter artifact description"
                                         name="description"
                                         className="h-full flex-grow bg-transparent"
-                                        value={artifact.description}
+                                        value={artifact?.description}
                                         setForm={props.setArtifact}
                                         customBg
                                         noPadding
@@ -411,7 +411,7 @@ function CollectionArtifact(props: ArtifactProps){
                                     <Button
                                         className="focus:text-gray-600"
                                         onClick={() => {
-                                            if(artifact.shortcut_id){
+                                            if(artifact?.shortcut_id){
                                                 props.setArtifact(currentArtifact => ({...currentArtifact, awaiting_delete: true}));
                                             }else{
                                                 props.removeArtifact();
@@ -424,7 +424,7 @@ function CollectionArtifact(props: ArtifactProps){
                                 </>
                                 :
                                 <>
-                                    <p onClick={props.onClick} className="flex-grow">{artifact.description}</p>
+                                    <p onClick={props.onClick} className="flex-grow">{artifact?.description}</p>
                                     <Button
                                         className={classNames(
                                             'text-lg',
@@ -442,8 +442,8 @@ function CollectionArtifact(props: ArtifactProps){
                     </div>}
                 </div>
                 <div className="bg-gray-100 px-4 py-3 rounded-b text-gray-600 flex items-start">
-                    <img src={artifact.icon} className="w-auto h-5 pr-3 pt-1"/>
-                    <div ><a href={artifact.web_view} target="_blank">{artifact.title}</a></div>
+                    <img src={artifact?.icon} className="w-auto h-5 pr-3 pt-1"/>
+                    <div ><a href={artifact?.web_view} target="_blank">{artifact?.title}</a></div>
                 </div>
             </div>
         </div>

@@ -36,23 +36,25 @@ export default function Layout(props: LayoutProps){
     const [initialized, setInitialized] = useState(false);
     const router = useRouter();
 
-    function loadApis(){
-        for(let gapi of props.gapis){
-            window.gapi.load(gapi);
-        }
+    function apiLoader(accessToken: string){
+        return () => {
+            for(let gapi of props.gapis){
+                window.gapi.load(gapi);
+            }
 
-        window.gapi.load('client:auth2', () => {
-            window.gapi.client.init({
-                apiKey: developerKey,
-                clientId: clientId,
-                scope: 'https://www.googleapis.com/auth/drive'
-            }).then(() => {
-                window.gapi.client.load('drive', 'v3', () => {
-                    if(props.onGapisLoad) props.onGapisLoad();
-                    setInitialized(true);
+            window.gapi.load('client:auth2', () => {
+                window.gapi.client.init({
+                    apiKey: developerKey,
+                    clientId: clientId,
+                    scope: 'https://www.googleapis.com/auth/drive'
+                }).then(() => {
+                    window.gapi.client.load('drive', 'v3', () => {
+                        if(props.onGapisLoad) props.onGapisLoad();
+                        setInitialized(true);
+                    });
                 });
             });
-        });
+        }
     }
 
     useEffect(() => {
@@ -61,7 +63,7 @@ export default function Layout(props: LayoutProps){
 
             const authState = useAuth(props.authorization, session, props.author);
 
-            if(session && !session.firebaseAuth){
+            if(session){
                 db.setCredentials(session.firebaseToken);
             }
 
@@ -70,6 +72,8 @@ export default function Layout(props: LayoutProps){
             }
 
             if(props.gapis && session){
+                const loadApis = apiLoader(session.accessToken);
+
                 if(window.google){
                     loadApis();
                 }else{
