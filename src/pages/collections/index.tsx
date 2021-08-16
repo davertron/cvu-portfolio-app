@@ -120,7 +120,7 @@ export default function Collection(){
             </div>}
             <div className="flex flex-wrap justify-center py-3 px-5">
                 {dbLoaded &&
-                    (collections.length > 0 ?
+                    (collections?.length > 0 ?
                         <>
                             {collections.map(collection => (
                                 <div key={collection.id}>
@@ -132,7 +132,7 @@ export default function Collection(){
                                                 </p>
                                                 {posts[collection.id] == 0 && <Button
                                                     className="py-3"
-                                                    onClick={() => remove(window.gapi.client, collection)}
+                                                    onClick={async () => await remove(window.gapi.client, collection)}
                                                     customPadding
                                                 >
                                                     <MdClose/>

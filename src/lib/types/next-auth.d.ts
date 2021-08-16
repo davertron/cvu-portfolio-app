@@ -18,7 +18,6 @@ declare module 'next-auth' {
         accessToken: string;
         expires: string;
         firebaseToken: string;
-        firebaseAuth?: boolean;
         error?: any;
     }
 

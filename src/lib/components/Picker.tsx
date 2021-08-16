@@ -1,4 +1,5 @@
 import { Parent } from './types';
+import { fileIndicators } from './fileIndicators';
 import loadScript from 'load-script';
 import { useSession } from 'next-auth/client';
 import { useState, useEffect } from 'react';
@@ -15,21 +16,7 @@ interface PickerProps extends Parent {
 const developerKey = process.env.NEXT_PUBLIC_API_KEY;
 
 // Drive's non-shortcut mime types
-const DRIVE_TYPES = [
-    'audio',
-    'document',
-    'drawing',
-    'file',
-    'form',
-    'fusiontable',
-    'map',
-    'photo',
-    'presentation',
-    'script',
-    'site',
-    'spreadsheet',
-    'video'
-].map(type => `application/vnd.google-apps.${type}`);
+const DRIVE_TYPES = Object.keys(fileIndicators).map(type => `application/vnd.google-apps.${type}`);
 
 export default function Picker(props: PickerProps){
     const [session, loading] = useSession();

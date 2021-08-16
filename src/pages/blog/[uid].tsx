@@ -4,7 +4,7 @@ import Button, { OutlineButton, Cta } from '../../lib/components/Button';
 import Error from '../../lib/components/Error';
 import Tag from '../../lib/components/Tag';
 import { Authorization } from '../../lib/authorization';
-import { dateString, classNames, createdAt, warnIfUnsaved, loadStarted } from '../../lib/util';
+import { dateString, classNames, createdAt, warnIfUnsaved, cleanupWarnIfUnsaved, loadStarted } from '../../lib/util';
 import db from '../../lib/db/client';
 import { Post, FileCollection, User, Comment } from '../../lib/db/models';
 import { useSession } from 'next-auth/client';
@@ -77,18 +77,20 @@ export default function Blog(props: BlogProps){
         return (post: Post) => {
             let score = 0;
 
-            post.body.toLowerCase().split(' ').map(word => {
-                score += match(keywords, word, [2,1]);
-            });
+            try {
+                post.body.toLowerCase().split(' ').map(word => {
+                    score += match(keywords, word, [2,1]);
+                });
 
-            post.title.toLowerCase().split(' ').map(word => {
-                score += match(keywords, word, [5, 1.5]);
-            });
+                post.title.toLowerCase().split(' ').map(word => {
+                    score += match(keywords, word, [5, 1.5]);
+                });
 
-            post.tags.map(cid => {
-                const collection = collections[cid];
-                if(collection) score += match(keywords, collection.title, [4, 1.5])
-            });
+                post.tags.map(cid => {
+                    const collection = collections[cid];
+                    if(collection) score += match(keywords, collection.title, [4, 1.5])
+                });
+            }catch(_e){ }
 
             return score;
         }
@@ -193,14 +195,14 @@ export default function Blog(props: BlogProps){
 
     const renderPost = (post: Post) => (
         <BlogPost
-            key={post.id}
+            key={post?.id}
             post={post}
-            removePost={removePost(post.id)}
-            setPost={setPost(post.id)}
+            removePost={removePost(post?.id)}
+            setPost={setPost(post?.id)}
             setError={setError}
             collections={collections}
             validate={validate}
-            editing={post.awaiting_save}
+            editing={post?.awaiting_save}
             locked={!owned}
         />
     );
@@ -261,7 +263,13 @@ export default function Blog(props: BlogProps){
                         )}
                         id="search-icon"
                     >
-                        <Button customPadding onClick={() => setSearch({term: ''})} className={classNames(search.term?.trim?.() == '' && 'opacity-0')}>
+                        <Button
+                            customPadding
+                            onClick={() => setSearch({term: ''})}
+                            className={classNames(
+                                search.term?.trim?.() == '' && 'opacity-0'
+                            )}
+                        >
                             <MdClose
                                 size="1.3em"
                                 className="text-indigo-200 hover:text-white"
@@ -275,7 +283,7 @@ export default function Blog(props: BlogProps){
                     {error && <div className="self-stretch mb-1">
                         <Error error={error}/>
                     </div>}
-                    {(search.term.trim() == '' && filters.length == 0 && posts.filter(post => post.awaiting_save).length == 0 && owned) &&
+                    {(search.term?.trim?.() == '' && filters.length == 0 && posts.filter(post => post.awaiting_save).length == 0 && owned) &&
                         <Cta
                             className="mb-10 text-center self-stretch flex items-center justify-center bg-gray-100 text-gray-500 hover:bg-indigo-500 hover:text-white py-3"
                             onClick={() => setPosts(currentPosts => [
@@ -291,7 +299,7 @@ export default function Blog(props: BlogProps){
                             <MdAdd size="2em"/>
                         </Cta>
                     }
-                    {search.term.trim() == '' ?
+                    {search.term?.trim?.() == '' ?
                         [
                             ...posts.filter(p => p.awaiting_save).map(renderPost),
                             ...posts.filter(p => !p.awaiting_save).sort(createdAt).filter(matchFilters(filters)).map(renderPost)
@@ -381,7 +389,8 @@ function BlogPost(props: PostProps){
 
                 props.setPost(currentPost => currentPost.with({likes: updatedLikes}));
             }
-        }catch(_e){
+        }catch(e){
+            console.log(e)
             props.setError('There was an error updating this post');
         }
     }
@@ -418,6 +427,17 @@ function BlogPost(props: PostProps){
         }
     }
 
+    async function deletePost(){
+        if(confirm(`Are you sure you want to delete post "${post?.title}"?`)){
+            try {
+                await db.posts.doc(post?.id).delete();
+                props.removePost();
+            }catch(_e){
+                props.setError('There was an error deleting your post');
+            }
+        }
+    }
+
     async function getData(pid: string){
         try {
             const commentSnapshot = await db.comments(pid).get();
@@ -446,17 +466,44 @@ function BlogPost(props: PostProps){
         }
     }
 
+    async function saveComment(comment: Comment){
+        try {
+            await db.comments(post.id).doc(comment.id).set(comment);
+
+            if(comment.awaiting_save){
+                setComment(comment.id)(currentComment => currentComment.with({
+                    awaiting_save: false
+                }));
+            }else{
+                setEditingId(null);
+            }
+        }catch(_e){
+            props.setError('There was an error saving your comment');
+        }
+    }
+
+    async function deleteComment(comment: Comment){
+        try {
+            await db.comments(post.id).doc(comment.id).delete();
+            setComments(currentComments => currentComments.filter(c => c.id != comment.id));
+        }catch(_e){
+            props.setError('There was an error deleting your comment');
+        }
+    }
+
     useEffect(() => {
         if(!dbLoaded && post){
             getData(post.id);
         }
 
         warnIfUnsaved(editing || editingId || post.awaiting_save);
+
+        return cleanupWarnIfUnsaved;
     }, [post, dbLoaded, editing, editingId]);
 
     return (
         <div
-            key={post.id}
+            key={post?.id}
             className={classNames(
                 'mb-8 py-3 px-7 self-stretch rounded-lg flex flex-col border',
                 editing ? 'shadow border-gray-100' : 'border-gray-200'
@@ -464,12 +511,12 @@ function BlogPost(props: PostProps){
         >
             <div className="my-3">
                 {editing ?
-                    <Input type="text" name="title" className="text-xl font-bold w-full text-gray-600" placeholder="Post title" setForm={props.setPost} value={post.title}/>
+                    <Input type="text" name="title" className="text-xl font-bold w-full text-gray-600" placeholder="Post title" setForm={props.setPost} value={post?.title}/>
                     :
                     <div className="flex items-start">
                         <div className="flex-grow">
-                            <h1 className="text-xl font-bold">{post.title}</h1>
-                            <p className="text-gray-400 mt-2">{dateString(post.created_at)}</p>
+                            <h1 className="text-xl font-bold">{post?.title}</h1>
+                            <p className="text-gray-400 mt-2">{dateString(post?.created_at)}</p>
                         </div>
                     </div>
                 }
@@ -477,9 +524,9 @@ function BlogPost(props: PostProps){
             <hr/>
             <div className="my-3 text-gray-500">
                 {editing ?
-                    <Input type="textarea" className="w-full h-40" name="body" setForm={props.setPost} value={post.body}/>
+                    <Input type="textarea" className="w-full h-40" name="body" setForm={props.setPost} value={post?.body}/>
                     :
-                    <p>{post.body}</p>
+                    <p>{post?.body}</p>
                 }
             </div>
             {(post.tags.length > 0 || editing) &&
@@ -489,7 +536,7 @@ function BlogPost(props: PostProps){
                         {editing ?
                             Object.keys(props.collections).map(cid => (
                                 <Tag
-                                    key={post.id + cid}
+                                    key={post?.id + cid}
                                     className="my-2 mr-4"
                                     onClick={selected => {
                                         if(selected){
@@ -502,14 +549,14 @@ function BlogPost(props: PostProps){
                                             }));
                                         }
                                     }}
-                                    selected={post.tags.indexOf(cid) != -1}
+                                    selected={post?.tags?.indexOf?.(cid) != -1}
                                 >
                                     {props.collections[cid]?.title}
                                 </Tag>
                             ))
                             :
                             post.tags.map(cid => (
-                                <Tag className="my-2 mr-4" href={'/collections/' + cid} key={post.id + cid} active>
+                                <Tag className="my-2 mr-4" href={'/collections/' + cid} key={post?.id + cid} active>
                                     {props.collections[cid]?.title}
                                 </Tag>
                             ))
@@ -558,12 +605,7 @@ function BlogPost(props: PostProps){
                             </OutlineButton>
                             <OutlineButton
                                 color="red-700"
-                                onClick={() => {
-                                    if(confirm(`Are you sure you want to delete post "${post.title}"?`)){
-                                        db.posts.doc(post.id).delete();
-                                        props.removePost();
-                                    }
-                                }}
+                                onClick={deletePost}
                                 icon={<MdClose/>}
                             >
                                 Delete
@@ -592,17 +634,7 @@ function BlogPost(props: PostProps){
                                                 disabled={!validate(comment)}
                                                 className="mr-3"
                                                 icon={comment.awaiting_save ? <MdChatBubbleOutline/> : <MdDone/>}
-                                                onClick={() => {
-                                                    db.comments(post.id).doc(comment.id).set(comment);
-
-                                                    if(comment.awaiting_save){
-                                                        setComment(comment.id)(currentComment => currentComment.with({
-                                                            awaiting_save: false
-                                                        }));
-                                                    }else{
-                                                        setEditingId(null);
-                                                    }
-                                                }}
+                                                onClick={async () => await saveComment(comment)}
                                             >
                                                 {comment.awaiting_save ? 'Add' : 'Save'}
                                             </Cta>
@@ -639,10 +671,7 @@ function BlogPost(props: PostProps){
                                                 </Button>
                                                 <Button
                                                     className="mx-1"
-                                                    onClick={() => {
-                                                        setComments(currentComments => currentComments.filter(c => c.id != comment.id));
-                                                        db.comments(post.id).doc(comment.id).delete();
-                                                    }}
+                                                    onClick={async () => await deleteComment(comment)}
                                                     customPadding
                                                 >
                                                     <MdClose/>
@@ -669,8 +698,8 @@ function BlogPost(props: PostProps){
 
                                     setComments(currentComments => [
                                         new Comment({
-                                            post_author_id: post.author_id,
-                                            author_id: session.user.id,
+                                            post_author_id: post?.author_id,
+                                            author_id: session.user?.id,
                                             awaiting_save: true
                                         }, true),
                                         ...currentComments
@@ -684,13 +713,13 @@ function BlogPost(props: PostProps){
                     <div className="flex flex-grow justify-end items-center">
                         <Button
                             className="text-xl text-red-500"
-                            disabled={session?.user?.id == post.author_id}
+                            disabled={session?.user?.id == post?.author_id}
                             onClick={like}
-                            icon={session && post.likes.indexOf(session?.user?.id) == -1 ? <MdFavoriteBorder/> : <MdFavorite/>}
+                            icon={session && post?.likes?.indexOf?.(session?.user?.id) == -1 ? <MdFavoriteBorder/> : <MdFavorite/>}
                             customPadding
                             flexReverse
                         >
-                            {post.likes.length > 0 && <div className="text-base">{post.likes.length}</div>}
+                            {post?.likes?.length > 0 && <div className="text-base">{post?.likes?.length}</div>}
                         </Button>
                     </div>
                 </div>}

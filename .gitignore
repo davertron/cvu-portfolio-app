@@ -37,8 +37,8 @@ next-env.d.ts
 .env
 
 # Firebase sub-repo
-/gcloud/firebase
-!/gcloud/firebase/anchor
+!gcloud/firebase/anchor
+gcloud/firebase
 
 # Firebase private key
 absolute-vertex-313616-firebase-adminsdk*.json

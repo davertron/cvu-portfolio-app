@@ -7,7 +7,7 @@ import Button, { OutlineButton, Cta } from '../../lib/components/Button';
 import { Authorization } from '../../lib/authorization';
 import db from '../../lib/db/client';
 import { User, FileCollection, Permission } from '../../lib/db/models';
-import { loadStarted, warnIfUnsaved } from '../../lib/util';
+import { loadStarted, warnIfUnsaved, cleanupWarnIfUnsaved } from '../../lib/util';
 import { MdEdit, MdClose, MdCheck, MdPersonAdd, MdAdd } from 'react-icons/md';
 import { useSession } from 'next-auth/client';
 import { useRouter } from 'next/router';
@@ -24,7 +24,7 @@ export default function Profile(){
 
     const setPermission = (email: string) => ((cb: StateSetter) => {
         setUser(currentUser => currentUser.with({
-            shared_with: currentUser.shared_with.map(p => p.email == email ? cb(p) : p)
+            shared_with: currentUser.shared_with?.map?.(p => p.email == email ? cb(p) : p)
         }));
     });
 
@@ -49,28 +49,30 @@ export default function Profile(){
 
         if(parts.length == 2){
             const [address, domain] = parts;
-            return address != '' && domain == 'cvsdvt.org' && sharingError == null && user.shared_with.filter(p => !p.awaiting_delete && p.email == email).length == 0;
+            return address != '' && domain == 'cvsdvt.org' && sharingError == null && user?.shared_with?.filter(p => !p.awaiting_delete && p.email == email).length == 0;
         }
 
         return false;
     }
 
     function placeButtons(){
-        const buttons = document.getElementById('sticky-buttons');
-        const relativeClasses = ['border'];
-        const fixedClasses = ['shadow-lg', 'flex-col'];
+        try {
+            const buttons = document.getElementById('sticky-buttons');
+            const relativeClasses = ['border'];
+            const fixedClasses = ['shadow-lg', 'flex-col'];
 
-        if(buttons){
-            if(window.scrollY > buttons.offsetTop + 10){
-                buttons.style.position = 'fixed';
-                buttons.classList.remove(...relativeClasses);
-                buttons.classList.add(...fixedClasses);
-            }else{
-                buttons.style.position = 'relative';
-                buttons.classList.remove(...fixedClasses);
-                buttons.classList.add(...relativeClasses)
+            if(buttons){
+                if(window.scrollY > buttons.offsetTop + 10){
+                    buttons.style.position = 'fixed';
+                    buttons.classList.remove(...relativeClasses);
+                    buttons.classList.add(...fixedClasses);
+                }else{
+                    buttons.style.position = 'relative';
+                    buttons.classList.remove(...fixedClasses);
+                    buttons.classList.add(...relativeClasses)
+                }
             }
-        }
+        }catch(_e){ }
     }
 
     function stickyButtons(){
@@ -254,6 +256,8 @@ export default function Profile(){
         warnIfUnsaved(editing || saveDisabled);
 
         stickyButtons();
+
+        return cleanupWarnIfUnsaved;
     }, [id, dbLoaded, apisLoaded, driveLoaded, editing, saveDisabled]);
 
     if(dbLoaded && user == null){
@@ -270,7 +274,7 @@ export default function Profile(){
                 {error && <Error error={error}/>}
                 {user && session &&
                     <div>
-                        {session.user.id == id &&
+                        {session.user?.id == id &&
                             <div className="rounded-lg p-2 border border-gray-300 flex justify-center top-0 bg-white z-10 transition-all" id="sticky-buttons">
                                 {editing &&
                                     <Cta
@@ -306,7 +310,7 @@ export default function Profile(){
                                             setFiles={setFiles}
                                         >
                                             <div className="relative">
-                                                <img src={files.length > 0 ? files[0].preview.url : user.bio_pic?.url} alt="Bio pic" className="w-full rounded mb-6 shadow-lg"/>
+                                                <img src={files?.length > 0 ? files[0].preview?.url : user.bio_pic?.url} alt="Bio pic" className="w-full rounded mb-6 shadow-lg"/>
                                                 <div className="absolute top-0 w-full h-full bg-gray-600 opacity-50 rounded text-center"></div>
                                                 <div className="absolute top-0 w-full h-full rounded flex flex-column items-center justify-center">
                                                     <MdEdit className="text-white" size="1.5em"/>
@@ -317,7 +321,7 @@ export default function Profile(){
                                     :
                                     <img src={user.bio_pic?.url} alt="profile" className="w-full rounded mb-6 shadow-lg"/>
                                 }
-                                {files.length > 0 && editing &&
+                                {files?.length > 0 && editing &&
                                     <div>
                                         <hr/>
                                         <div>
@@ -334,22 +338,22 @@ export default function Profile(){
                                     <h3 className="font-bold text-gray-600 text-lg my-2">Collections</h3>
                                     <hr className="block"/>
                                     <div className="my-2 flex flex-wrap">
-                                        {collections.length > 0 ?
+                                        {collections?.length > 0 ?
                                             collections.map(collection => (
                                                 <Tag href={'/collections/' + collection.id} key={collection.id} className="mr-4 my-2">
                                                     {collection.title}
                                                 </Tag>
                                             ))
                                             :
-                                            <span>No collections yet. {session.user.id == id && <Link href="/collections/new"><a className="text-blue-500 hover:underline">Add one</a></Link>}</span>
+                                            <span>No collections yet. {session.user?.id == id && <Link href="/collections/new"><a className="text-blue-500 hover:underline">Add one</a></Link>}</span>
                                         }
                                     </div>
                                 </div>
-                                {session.user.id == id && <div>
+                                {session.user?.id == id && <div>
                                     <h3 className="font-bold text-gray-600 text-lg mb-2 mt-4">Sharing</h3>
                                     <hr/>
                                     <div className="my-1">
-                                        {visibleSharedWith.length > 0 &&
+                                        {visibleSharedWith?.length > 0 &&
                                             <>
                                                 <p className="text-gray-500 pt-3">Users who can see your portfolio</p>
                                                 <div className="py-1">
@@ -417,9 +421,9 @@ export default function Profile(){
                                                 icon={<MdPersonAdd/>}
                                                 onClick={() => setEditing(true)}
                                                 className="w-full my-3"
-                                                gradient={user.shared_with && user.shared_with.length == 0}
+                                                gradient={user?.shared_with && user?.shared_with?.length == 0}
                                             >
-                                                {user.shared_with && user.shared_with.length > 0 ? 'Add viewers' : 'Share your portfolio'}
+                                                {user?.shared_with && user?.shared_with?.length > 0 ? 'Add viewers' : 'Share your portfolio'}
                                             </Cta>
                                         }
                                     </div>
@@ -427,15 +431,15 @@ export default function Profile(){
                             </div>
                             <div className="m-8 w-72">
                                 {editing ?
-                                    <Input type="text" className="w-full text-xl font-bold" value={user.name} name="name" setForm={setUser}/>
+                                    <Input type="text" className="w-full text-xl font-bold" value={user?.name} name="name" setForm={setUser}/>
                                     :
-                                    <h3 className="text-xl font-bold text-gray-700">{user.name}</h3>
+                                    <h3 className="text-xl font-bold text-gray-700">{user?.name}</h3>
                                 }
                                 <hr className="my-3"/>
                                 {editing ?
-                                    <Input className="w-full h-56" type="textarea" value={user.bio || ''} name="bio" setForm={setUser}/>
+                                    <Input className="w-full h-56" type="textarea" value={user?.bio || ''} name="bio" setForm={setUser}/>
                                     :
-                                    <p>{user.bio || <span className="text-gray-500">No bio yet</span>}</p>
+                                    <p>{user?.bio || <span className="text-gray-500">No bio yet</span>}</p>
                                 }
                             </div>
                         </div>

@@ -4,9 +4,10 @@ import Input, { StateSetter } from '../../lib/components/Input';
 import Button, { OutlineButton, Cta } from '../../lib/components/Button';
 import Picker from '../../lib/components/Picker';
 import Error from '../../lib/components/Error';
+import { fileIndicators } from '../../lib/components/fileIndicators';
 import db from '../../lib/db/client';
 import { FileCollection, Artifact, User } from '../../lib/db/models';
-import { classNames, loadStarted, warnIfUnsaved } from '../../lib/util';
+import { classNames, loadStarted, warnIfUnsaved, cleanupWarnIfUnsaved } from '../../lib/util';
 import { Interactive } from '../../lib/components/types';
 import { useSession } from 'next-auth/client';
 import { useRouter } from 'next/router';
@@ -40,7 +41,7 @@ export default function Collection(props: CollectionProps){
     const router = useRouter();
     const { id } = router.query;
     const showInputs = props.creating || editing;
-    const owned = session && (collection.author_id == session.user.id || props.creating);
+    const owned = session && (collection?.author_id == session.user?.id || props.creating);
 
     const removeArtifact = (aid: string) => {
         return () => {
@@ -54,7 +55,7 @@ export default function Collection(props: CollectionProps){
         }
     }
 
-    const validate = (collection: FileCollection, artifacts: Artifact[]) => !!collection.title;
+    const validate = (collection: FileCollection, artifacts: Artifact[]) => !!collection?.title;
 
     async function createArtifact(picked){
         try {
@@ -206,6 +207,7 @@ export default function Collection(props: CollectionProps){
 
         warnIfUnsaved(editing || props.creating || saveDisabled);
 
+        return cleanupWarnIfUnsaved;
     }, [loading, dbLoaded, driveLoaded, apisLoaded, id, editing, saveDisabled]);
 
     return (
@@ -229,7 +231,7 @@ export default function Collection(props: CollectionProps){
                                         className="bg-gray-300 bg-opacity-10 placeholder-gray-100 text-white focus:shadow-xl text-2xl font-bold"
                                         listClassname="bg-purple-400 bg-opacity-60 text-white backdrop-blur shadow-lg"
                                         setForm={setCollection}
-                                        value={collection.title || ''}
+                                        value={collection?.title || ''}
                                         name="title"
                                         options={[
                                             'Creative and Practical Problem Solving',
@@ -242,8 +244,8 @@ export default function Collection(props: CollectionProps){
                                 </div>
                                 :
                                 <div className="text-center">
-                                    <h1 className="font-bold text-2xl py-2">{collection.title}</h1>
-                                    {(!owned && user.name) && <h2 className="text-gray-100 text-lg py-2">{user.name}</h2>}
+                                    <h1 className="font-bold text-2xl py-2">{collection?.title}</h1>
+                                    {(!owned && user?.name) && <h2 className="text-gray-100 text-lg py-2">{user.name}</h2>}
                                 </div>
                             }
                         </div>
@@ -261,10 +263,10 @@ export default function Collection(props: CollectionProps){
                                 </Picker>
                                 :
                                 <>
-                                    <Cta icon={<MdOpenInNew/>} href={collection.web_view || '#'} target="_blank" className="mx-2" invert>
+                                    <Cta icon={<MdOpenInNew/>} href={collection?.web_view || '#'} target="_blank" className="mx-2" invert>
                                         Open in drive
                                     </Cta>
-                                    <Cta icon={<CgFeed/>} href={'/blog/' + collection.author_id + '?tags=' + collection.id} className="mx-2" invert>
+                                    <Cta icon={<CgFeed/>} href={'/blog/' + collection?.author_id + '?tags=' + collection?.id} className="mx-2" invert>
                                         Tagged posts
                                     </Cta>
                                 </>
@@ -351,99 +353,97 @@ function CollectionArtifact(props: ArtifactProps){
     const [thumbnail, setThumbnail] = useState(null);
     const artifact = props.artifact;
 
-    async function loadThumbnail(accessToken: string){
-        try {
-            const res = await fetch(artifact.thumbnail, {
-                mode: 'cors',
-                headers: {'Authorization': 'Bearer ' + accessToken}
-            });
-            const data = await res.blob();
-            const localURL = URL.createObjectURL(data);
+    let type = 'file';
 
-            setThumbnail(localURL);
-        }catch(e){
-            console.log('Failed to load thumbnail', e);
-        }
+    if(artifact.mimeType){
+        const typeParts = artifact.mimeType.split('.');
+        type = typeParts[typeParts.length - 1];
     }
+    const fileIndicator = fileIndicators[type] ? fileIndicators[type] : fileIndicators['file'];
 
     useEffect(() => {
         if(props.apisLoaded && artifact.thumbnail){
+            // Thumbnails currently only work when the same person using the app is signed into chrome, so indicators are shown as a replacement
             // Wait until window OAuth token is set to load thumbnail image
-            setThumbnail(artifact.thumbnail);
-
-            // This doesn't work yet... still trying to figure out why
-            /*if(session && !loading){
-                loadThumbnail(session.accessToken);
-            }*/
+            //setThumbnail(artifact.thumbnail);
         }
     }, [props.apisLoaded, artifact, session, loading]);
 
+    const backgroundStyle = {
+        backgroundSize: 'cover',
+        minHeight: '200px'
+    };
+    if(thumbnail) backgroundStyle['backgroundImage'] = `url(${thumbnail})`;
+
     return (
-        <div key={artifact.id} className="m-4 w-80">
+        <div key={artifact?.id} className="m-4 w-80">
             <div className="rounded shadow">
                 <div
-                    className="transition-all rounded-t relative group"
-                    style={{
-                        backgroundImage: thumbnail ? `url(${thumbnail})` : '',
-                        backgroundSize: 'cover',
-                        minHeight: '200px'
-                    }}
+                    className={classNames(
+                        'transition-all rounded-t relative group',
+                         (!thumbnail && fileIndicator) && `bg-gradient-to-r from-${fileIndicator.from} to-${fileIndicator.to}`
+                    )}
+                    style={backgroundStyle}
                 >
-                    {(props.editing || artifact.description != '') && <div
-                        className={classNames(
-                            'transition-all p-4 bg-white h-full w-full absolute text-gray-500 rounded-t',
-                            props.editing || pinned ? 'opacity-100 bg-opacity-70' : 'opacity-0 bg-opacity-0 group-hover:bg-opacity-70 group-hover:opacity-100'
-                        )}
-                    >
-                        <div className="flex flex-row items-start">
-                            {props.editing ?
-                                <>
-                                    <Input
-                                        type="textarea"
-                                        placeholder="Enter artifact description"
-                                        name="description"
-                                        className="h-full flex-grow bg-transparent"
-                                        value={artifact.description}
-                                        setForm={props.setArtifact}
-                                        customBg
-                                        noPadding
-                                    />
-                                    <Button
-                                        className="focus:text-gray-600"
-                                        onClick={() => {
-                                            if(artifact.shortcut_id){
-                                                props.setArtifact(currentArtifact => ({...currentArtifact, awaiting_delete: true}));
-                                            }else{
-                                                props.removeArtifact();
-                                            }
-                                        }}
-                                        customPadding
-                                    >
-                                        <MdClose/>
-                                    </Button>
-                                </>
-                                :
-                                <>
-                                    <p onClick={props.onClick} className="flex-grow">{artifact.description}</p>
-                                    <Button
-                                        className={classNames(
-                                            'text-lg',
-                                            pinned ? 'text-gray-700' : 'text-gray-400'
-                                        )}
-                                        onClick={() => setPinned(currentPinned => !currentPinned)}
-                                        customPadding
-                                    >
-                                        {pinned ? <AiFillPushpin/> : <AiOutlinePushpin/>}
-                                    </Button>
-                                </>
-                            }
-
-                        </div>
-                    </div>}
+                    <div className="absolute w-full h-full flex justify-center items-center">
+                        <fileIndicator.icon color="white" size={90}/>
+                    </div>
+                    <div className="z-10 absolute w-full h-full">
+                        {(props.editing || artifact?.description != '') && <div
+                            className={classNames(
+                                'transition-all p-4 bg-white h-full w-full absolute text-gray-500 rounded-t',
+                                props.editing || pinned ? 'opacity-100 bg-opacity-70' : 'opacity-0 bg-opacity-0 group-hover:bg-opacity-70 group-hover:opacity-100'
+                            )}
+                        >
+                            <div className="flex flex-row items-start">
+                                {props.editing ?
+                                    <>
+                                        <Input
+                                            type="textarea"
+                                            placeholder="Enter artifact description"
+                                            name="description"
+                                            className="h-full flex-grow bg-transparent"
+                                            value={artifact?.description}
+                                            setForm={props.setArtifact}
+                                            customBg
+                                            noPadding
+                                        />
+                                        <Button
+                                            className="focus:text-gray-600"
+                                            onClick={() => {
+                                                if(artifact?.shortcut_id){
+                                                    props.setArtifact(currentArtifact => ({...currentArtifact, awaiting_delete: true}));
+                                                }else{
+                                                    props.removeArtifact();
+                                                }
+                                            }}
+                                            customPadding
+                                        >
+                                            <MdClose/>
+                                        </Button>
+                                    </>
+                                    :
+                                    <>
+                                        <p onClick={props.onClick} className="flex-grow">{artifact?.description}</p>
+                                        <Button
+                                            className={classNames(
+                                                'text-lg',
+                                                pinned ? 'text-gray-700' : 'text-gray-400'
+                                            )}
+                                            onClick={() => setPinned(currentPinned => !currentPinned)}
+                                            customPadding
+                                        >
+                                            {pinned ? <AiFillPushpin/> : <AiOutlinePushpin/>}
+                                        </Button>
+                                    </>
+                                }
+                            </div>
+                        </div>}
+                    </div>
                 </div>
                 <div className="bg-gray-100 px-4 py-3 rounded-b text-gray-600 flex items-start">
-                    <img src={artifact.icon} className="w-auto h-5 pr-3 pt-1"/>
-                    <div ><a href={artifact.web_view} target="_blank">{artifact.title}</a></div>
+                    {thumbnail && <img src={artifact?.icon} className="w-auto h-5 pr-3 pt-1"/>}
+                    <div ><a href={artifact?.web_view} target="_blank">{artifact?.title}</a></div>
                 </div>
             </div>
         </div>

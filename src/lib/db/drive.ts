@@ -64,18 +64,19 @@ export default class DriveDb {
         load: DriveDb.exec_safe(async (artifact: Artifact) => {
             const snapshot = await this.client.drive.files.get({
                 fileId: artifact.drive_id,
-                fields: 'name,iconLink,thumbnailLink,webViewLink,description'
+                fields: '*'//'name,type,iconLink,thumbnailLink,webViewLink,mimeType,description'
             });
             const metadata = snapshot.result;
             // Increase default thumbnail size
             const thumbnail = metadata.thumbnailLink ? metadata.thumbnailLink.replace('s220', 's500') : '';
-
+            console.log(metadata)
             if(metadata){
                 return artifact.with({
                     title: metadata.name,
                     icon: metadata.iconLink,
                     thumbnail: thumbnail,
                     web_view: metadata.webViewLink,
+                    mimeType: metadata.mimeType,
                     description: metadata.description || ''
                 });
             }
