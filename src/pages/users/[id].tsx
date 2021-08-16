@@ -7,7 +7,7 @@ import Button, { OutlineButton, Cta } from '../../lib/components/Button';
 import { Authorization } from '../../lib/authorization';
 import db from '../../lib/db/client';
 import { User, FileCollection, Permission } from '../../lib/db/models';
-import { loadStarted, warnIfUnsaved } from '../../lib/util';
+import { loadStarted, warnIfUnsaved, cleanupWarnIfUnsaved } from '../../lib/util';
 import { MdEdit, MdClose, MdCheck, MdPersonAdd, MdAdd } from 'react-icons/md';
 import { useSession } from 'next-auth/client';
 import { useRouter } from 'next/router';
@@ -256,6 +256,8 @@ export default function Profile(){
         warnIfUnsaved(editing || saveDisabled);
 
         stickyButtons();
+
+        return cleanupWarnIfUnsaved;
     }, [id, dbLoaded, apisLoaded, driveLoaded, editing, saveDisabled]);
 
     if(dbLoaded && user == null){

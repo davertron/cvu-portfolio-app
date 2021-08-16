@@ -48,6 +48,10 @@ export function warnIfUnsaved(unsaved: boolean){
     }
 }
 
+export function cleanupWarnIfUnsaved(){
+    window.onbeforeunload = null;
+}
+
 export function loadStarted(loadState: boolean){
     return loadState || loadState == null;
 }

@@ -4,7 +4,7 @@ import Button, { OutlineButton, Cta } from '../../lib/components/Button';
 import Error from '../../lib/components/Error';
 import Tag from '../../lib/components/Tag';
 import { Authorization } from '../../lib/authorization';
-import { dateString, classNames, createdAt, warnIfUnsaved, loadStarted } from '../../lib/util';
+import { dateString, classNames, createdAt, warnIfUnsaved, cleanupWarnIfUnsaved, loadStarted } from '../../lib/util';
 import db from '../../lib/db/client';
 import { Post, FileCollection, User, Comment } from '../../lib/db/models';
 import { useSession } from 'next-auth/client';
@@ -497,6 +497,8 @@ function BlogPost(props: PostProps){
         }
 
         warnIfUnsaved(editing || editingId || post.awaiting_save);
+
+        return cleanupWarnIfUnsaved;
     }, [post, dbLoaded, editing, editingId]);
 
     return (

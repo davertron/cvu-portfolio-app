@@ -100,13 +100,13 @@ export class Permission extends Model {
 }
 
 export class User extends Model {
-    email?: string;
-    name?: string;
+    email: string;
+    name: string;
     bio_pic?: {
         url: string;
         name: string;
     };
-    image?: string;
+    image: string;
     bio?: string = '';
     role?: UserRole = UserRole.STUDENT;
     shared_with?: Permission[] = [];
@@ -171,6 +171,8 @@ export class Artifact extends Model {
     thumbnail: string;
     @NonSerializable
     web_view: string;
+    @NonSerializable
+    mimeType: string;
     @NonSerializable
     description?: string = '';
 
