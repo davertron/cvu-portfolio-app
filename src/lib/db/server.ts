@@ -1,5 +1,4 @@
 import Db from './base';
-import serviceAccount from '../../../firebase-adminsdk.json';
 import * as admin from 'firebase-admin';
 
 const databaseURL = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN;
@@ -22,6 +21,8 @@ class AdminDb extends Db {
         return await this.auth.createCustomToken(uid, claims);
     }
 }
+
+const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
 
 const app = admin.apps.length
     ? admin.apps[0]
