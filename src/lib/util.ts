@@ -12,57 +12,57 @@ declare global {
     }
 }
 
-Array.prototype.separate = function(predicate){
+Array.prototype.separate = function (predicate) {
     let filtered = [];
     let removed = [];
 
-    for(let elem of this){
-        if(predicate(elem)){
+    for (let elem of this) {
+        if (predicate(elem)) {
             filtered.push(elem);
-        }else{
+        } else {
             removed.push(elem);
         }
     }
 
     return [filtered, removed];
+};
+
+String.prototype.toTitleCase = function () {
+    if (this.length > 0) return this[0].toUpperCase() + this.substring(1, this.length).toLowerCase();
+};
+
+export function classNames(...classes: string[]) {
+    return classes.filter(Boolean).join(' ');
 }
 
-String.prototype.toTitleCase = function(){
-    if(this.length > 0) return this[0].toUpperCase() + this.substring(1, this.length).toLowerCase();
-}
-
-export function classNames(...classes: string[]){
-  return classes.filter(Boolean).join(' ');
-}
-
-export function warnUnsavedChanges(e){
+export function warnUnsavedChanges(e) {
     e.preventDefault();
     e.returnValue = '';
 }
 
-export function warnIfUnsaved(unsaved: boolean){
-    if(unsaved){
+export function warnIfUnsaved(unsaved: boolean) {
+    if (unsaved) {
         window.onbeforeunload = warnUnsavedChanges;
-    }else if(window.onbeforeunload){
+    } else if (window.onbeforeunload) {
         window.onbeforeunload = null;
     }
 }
 
-export function cleanupWarnIfUnsaved(){
+export function cleanupWarnIfUnsaved() {
     window.onbeforeunload = null;
 }
 
-export function loadStarted(loadState: boolean){
+export function loadStarted(loadState: boolean) {
     return loadState || loadState == null;
 }
 
-export function homepage(session: Session){
+export function homepage(session: Session) {
     return '/users/' + session.user.id;
 }
 
-export function merge<T extends Model>(original: T[], update: T[], uniqueProp: string) : T[] {
-    let merged = original.map(a => {
-        const isUnique = b => b[uniqueProp] != a[uniqueProp];
+export function merge<T extends Model>(original: T[], update: T[], uniqueProp: string): T[] {
+    let merged = original.map((a) => {
+        const isUnique = (b) => b[uniqueProp] != a[uniqueProp];
 
         const [remaining, duplicates] = update.separate(isUnique);
         update = remaining;
@@ -73,13 +73,26 @@ export function merge<T extends Model>(original: T[], update: T[], uniqueProp: s
     return merged.concat(update);
 }
 
-const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const months = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+];
 
 export const dateString = (timestamp: Timestamp) => {
     const date = timestamp.toDate();
 
-    return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`
-}
+    return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+};
 
 export const valueOf = (timestamp: Timestamp) => timestamp.toDate().valueOf();
-export const createdAt = (a,b) => (a.created_at && b.created_at) ?  valueOf(b.created_at) - valueOf(a.created_at) : 0;
+export const createdAt = (a, b) => (a.created_at && b.created_at ? valueOf(b.created_at) - valueOf(a.created_at) : 0);

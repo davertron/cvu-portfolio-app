@@ -8,23 +8,24 @@ import 'firebase/storage';
 //import 'firebase/rules-unit-testing';
 
 class Converter<Schema extends Model> {
-    constructor(private SchemaType){ }
+    constructor(private SchemaType) {}
 
     toFirestore = (instance: Schema) => instance.serialize();
-    fromFirestore = (snapshot: firebase.firestore.QueryDocumentSnapshot) : Schema => new this.SchemaType({
-        ...snapshot.data(),
-        id: snapshot.id
-    });
+    fromFirestore = (snapshot: firebase.firestore.QueryDocumentSnapshot): Schema =>
+        new this.SchemaType({
+            ...snapshot.data(),
+            id: snapshot.id,
+        });
 }
 
 class CollectionFactory {
     store: firebase.firestore.Firestore;
 
-    constructor(store: firebase.firestore.Firestore){
+    constructor(store: firebase.firestore.Firestore) {
         this.store = store;
     }
 
-    new<Schema extends Model>(name: string, SchemaType){
+    new<Schema extends Model>(name: string, SchemaType) {
         const converter = new Converter<Schema>(SchemaType);
         return this.store.collection(name).withConverter(converter);
     }
@@ -46,12 +47,12 @@ export default class Db {
     store: any;
     auth: any;
 
-    constructor(app: any, useEmulator?: boolean){
+    constructor(app: any, useEmulator?: boolean) {
         this.app = app;
 
         const store = app.firestore();
 
-        if(useEmulator) store.useEmulator('localhost', 8080);
+        if (useEmulator) store.useEmulator('localhost', 8080);
 
         this.auth = app.auth();
         this.store = store;
@@ -63,13 +64,11 @@ export default class Db {
         this.posts = cf.new<Post>('posts', Post);
         // TODO: Remove this
         this.comments = (postId: string) => cf.new<Comment>('posts/' + postId + '/comments', Comment);
-        this.artifacts = (collectionId: string) => cf.new<Artifact>(
-            `file_collections/${collectionId}/artifacts`,
-            Artifact
-        );
+        this.artifacts = (collectionId: string) =>
+            cf.new<Artifact>(`file_collections/${collectionId}/artifacts`, Artifact);
     }
 
-    async setCredentials(token: string){
+    async setCredentials(token: string) {
         await this.auth.signInWithCustomToken(token);
     }
 }

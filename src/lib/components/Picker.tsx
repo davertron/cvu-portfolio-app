@@ -16,14 +16,14 @@ interface PickerProps extends Parent {
 const developerKey = process.env.NEXT_PUBLIC_API_KEY;
 
 // Drive's non-shortcut mime types
-const DRIVE_TYPES = Object.keys(fileIndicators).map(type => `application/vnd.google-apps.${type}`);
+const DRIVE_TYPES = Object.keys(fileIndicators).map((type) => `application/vnd.google-apps.${type}`);
 
-export default function Picker(props: PickerProps){
+export default function Picker(props: PickerProps) {
     const [session, loading] = useSession();
     const [createPicker, setCreatePicker] = useState(false);
     const router = useRouter();
 
-    function create(google, token: string){
+    function create(google, token: string) {
         const view = new google.picker.DocsView(google.picker.ViewId[props.viewId]);
         view.setMimeTypes(DRIVE_TYPES.join(','));
         view.setOwnedByMe(true);
@@ -34,7 +34,7 @@ export default function Picker(props: PickerProps){
             .setDeveloperKey(developerKey)
             .setCallback(props.onInput);
 
-        if(props.multiple){
+        if (props.multiple) {
             picker.enableFeature(google.picker.Feature.MULTISELECT_ENABLED);
         }
 
@@ -44,25 +44,21 @@ export default function Picker(props: PickerProps){
     }
 
     useEffect(() => {
-        if(createPicker && session && window.google){
-            if(session.error){
+        if (createPicker && session && window.google) {
+            if (session.error) {
                 router.push('/');
-            }else{
+            } else {
                 create(window.google, session.accessToken);
             }
         }
 
-        if(!window.google){
+        if (!window.google) {
             loadScript('https://apis.google.com/js/api.js', () => {
                 window.gapi.load('auth2');
                 window.gapi.load('picker');
             });
         }
-    }, [createPicker, loading])
+    }, [createPicker, loading]);
 
-    return (
-        <div onClick={() => setCreatePicker(true)}>
-            {props.children || <button>Open Google Picker</button>}
-        </div>
-    );
+    return <div onClick={() => setCreatePicker(true)}>{props.children || <button>Open Google Picker</button>}</div>;
 }

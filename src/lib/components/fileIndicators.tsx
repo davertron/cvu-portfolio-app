@@ -11,78 +11,78 @@ import {
     HiOutlineTerminal,
     HiOutlineGlobe,
     HiOutlineVideoCamera,
-    HiOutlineExclamation
+    HiOutlineExclamation,
 } from 'react-icons/hi';
 
 export const fileIndicators = {
-    'audio': {
+    audio: {
         from: 'teal-400',
         to: 'blue-600',
-        icon: HiOutlineMicrophone
+        icon: HiOutlineMicrophone,
     },
-    'document': {
+    document: {
         from: 'blue-300',
         to: 'blue-500',
-        icon: HiOutlineDocumentText
+        icon: HiOutlineDocumentText,
     },
-    'drawing': {
+    drawing: {
         from: 'red-300',
         to: 'red-500',
-        icon: HiOutlinePencilAlt
+        icon: HiOutlinePencilAlt,
     },
-    'file': {
+    file: {
         from: 'purple-400',
         to: 'indigo-700',
-        icon: HiOutlineDocument
+        icon: HiOutlineDocument,
     },
-    'form': {
+    form: {
         from: 'purple-300',
         to: 'purple-500',
-        icon: HiOutlineClipboardList
+        icon: HiOutlineClipboardList,
     },
-    'photo': {
+    photo: {
         from: 'blue-300',
         to: 'indigo-500',
-        icon: HiOutlinePhotograph
+        icon: HiOutlinePhotograph,
     },
-    'fusiontable': {
+    fusiontable: {
         from: 'green-400',
         to: 'teal-600',
-        icon: HiOutlineTable
+        icon: HiOutlineTable,
     },
-    'map': {
+    map: {
         from: 'orange-300',
         to: 'red-500',
-        icon: HiOutlineMap
+        icon: HiOutlineMap,
     },
-    'presentation': {
+    presentation: {
         from: 'yellow-300',
         to: 'yellow-500',
-        icon: HiOutlinePresentationChartBar
+        icon: HiOutlinePresentationChartBar,
     },
-    'script': {
+    script: {
         from: 'indigo-400',
         to: 'purple-600',
-        icon: HiOutlineTerminal
+        icon: HiOutlineTerminal,
     },
-    'site': {
+    site: {
         from: 'indigo-300',
         to: 'indigo-500',
-        icon: HiOutlineGlobe
+        icon: HiOutlineGlobe,
     },
-    'spreadsheet': {
+    spreadsheet: {
         from: 'green-300',
         to: 'green-500',
-        icon: HiOutlineTable
+        icon: HiOutlineTable,
     },
-    'video': {
+    video: {
         from: 'orange-400',
         to: 'orange-600',
-        icon: HiOutlineVideoCamera
+        icon: HiOutlineVideoCamera,
     },
-    'error': {
+    error: {
         from: 'pink-400',
         to: 'red-600',
-        icon: HiOutlineExclamation
-    }
-}
+        icon: HiOutlineExclamation,
+    },
+};

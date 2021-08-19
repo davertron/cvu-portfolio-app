@@ -27,17 +27,17 @@ interface InputProps extends Props, Parent {
     customRounding?: boolean;
 }
 
-function defaultHandler(setForm: ModelSetter) : FormEventHandler {
+function defaultHandler(setForm: ModelSetter): FormEventHandler {
     return (e: FormEvent<Element>) => {
         let val = e.target.value;
         let name = e.target.name;
         name = name.split('_')[0];
 
-        setForm(prevForm => {
-            if(e.target.type == 'checkbox') val = !prevForm[name];
-            return prevForm.with({[name]: val});
+        setForm((prevForm) => {
+            if (e.target.type == 'checkbox') val = !prevForm[name];
+            return prevForm.with({ [name]: val });
         });
-    }
+    };
 }
 
 function staticHandler(setForm: ModelSetter, name: string) {
@@ -45,26 +45,26 @@ function staticHandler(setForm: ModelSetter, name: string) {
         let val = e.target.getAttribute('value');
         name = name.split('_')[0];
 
-        setForm(prevForm => {
-            if(e.target.type == 'checkbox') val = !prevForm[name];
-            return prevForm.with({[name]: val});
+        setForm((prevForm) => {
+            if (e.target.type == 'checkbox') val = !prevForm[name];
+            return prevForm.with({ [name]: val });
         });
-    }
+    };
 }
 
-function switchHandler(setForm: ModelSetter, name: string) : (checked: boolean) => void {
+function switchHandler(setForm: ModelSetter, name: string): (checked: boolean) => void {
     return (checked: boolean) => {
-        setForm(prevForm => prevForm.with({[name]: checked}));
-    }
+        setForm((prevForm) => prevForm.with({ [name]: checked }));
+    };
 }
 
-function fileHandler(setFiles: StateSetter, name?: string) : (files: any[]) => void {
+function fileHandler(setFiles: StateSetter, name?: string): (files: any[]) => void {
     return (files: any[]) => {
         setFiles(files);
-    }
+    };
 }
 
-export default function Input(props: InputProps){
+export default function Input(props: InputProps) {
     const baseClasses = classNames(
         'resize-none focus:outline-none',
         !props.customBg && 'bg-gray-50',
@@ -74,24 +74,20 @@ export default function Input(props: InputProps){
     const handler = props.onInput || (props.setForm ? defaultHandler(props.setForm) : () => {});
     const [error, setError] = useState(null);
 
-    if(props.type == 'textarea'){
+    if (props.type == 'textarea') {
         return (
             <textarea
                 onInput={handler}
                 onBlur={props.onBlur}
                 onFocus={props.onFocus}
-                className={classNames(
-                    baseClasses,
-                    props.className
-                )}
+                className={classNames(baseClasses, props.className)}
                 value={props.value}
                 name={props.name}
                 placeholder={props.placeholder}
                 id={props.id}
-            >
-            </textarea>
+            ></textarea>
         );
-    }else if(props.type == 'checkbox'){
+    } else if (props.type == 'checkbox') {
         return (
             <Switch
                 checked={props.value}
@@ -112,48 +108,48 @@ export default function Input(props: InputProps){
                 />
             </Switch>
         );
-    }else if(props.type == 'file'){
+    } else if (props.type == 'file') {
         const handleFiles = fileHandler(props.setFiles);
 
         return (
             <Files
-              className="cursor-pointer"
-              onChange={e => {
-                  handleFiles(e);
-                  setError(null);
-              }}
-              onError={props.onError || (() => setError('Error processing file'))}
-              accepts={['image/png', 'image/jpg', 'image/svg', 'image/bmp', 'image/jpeg']}
-              maxFileSize={10000000}
-              minFileSize={0}
-              id={props.id}
-              onFocus={props.onFocus}
-              onBlur={props.onBlur}
+                className="cursor-pointer"
+                onChange={(e) => {
+                    handleFiles(e);
+                    setError(null);
+                }}
+                onError={props.onError || (() => setError('Error processing file'))}
+                accepts={['image/png', 'image/jpg', 'image/svg', 'image/bmp', 'image/jpeg']}
+                maxFileSize={10000000}
+                minFileSize={0}
+                id={props.id}
+                onFocus={props.onFocus}
+                onBlur={props.onBlur}
             >
-                {error && <Error error={error}/>}
+                {error && <Error error={error} />}
                 {props.children}
             </Files>
         );
-    }else if(props.type == 'datalist'){
+    } else if (props.type == 'datalist') {
         const [focused, setFocused] = useState(false);
         const handleOption = staticHandler(props.setForm, props.name);
-        const dataListBaseClasses = classNames(
-            !props.customRounding && 'rounded',
-            !props.customBg && 'bg-gray-20'
-        );
-        const options = props.options.filter(option => option.toLowerCase().includes(props.value.toLowerCase()));
-        const listId = props.name + '-options'
+        const dataListBaseClasses = classNames(!props.customRounding && 'rounded', !props.customBg && 'bg-gray-20');
+        const options = props.options.filter((option) => option.toLowerCase().includes(props.value.toLowerCase()));
+        const listId = props.name + '-options';
 
         return (
-            <div className="relative" onBlur={e => {
-                let focus = false;
+            <div
+                className="relative"
+                onBlur={(e) => {
+                    let focus = false;
 
-                if(e.relatedTarget){
-                    focus = e.relatedTarget.id == listId;
-                }
+                    if (e.relatedTarget) {
+                        focus = e.relatedTarget.id == listId;
+                    }
 
-                setFocused(focus);
-            }}>
+                    setFocused(focus);
+                }}
+            >
                 <div>
                     <Input
                         {...props}
@@ -172,21 +168,21 @@ export default function Input(props: InputProps){
                     )}
                     id={listId}
                     tabIndex={0}
-                 >
+                >
                     {options.map((option, i) => (
-                      <li
-                        key={listId + '-' + i}
-                        className="bg-white bg-opacity-0 hover:bg-opacity-30 py-1 px-3 transition-all cursor-pointer"
-                        onClick={handleOption}
-                        value={option}
-                      >
-                        {option}
-                      </li>
+                        <li
+                            key={listId + '-' + i}
+                            className="bg-white bg-opacity-0 hover:bg-opacity-30 py-1 px-3 transition-all cursor-pointer"
+                            onClick={handleOption}
+                            value={option}
+                        >
+                            {option}
+                        </li>
                     ))}
                 </ul>
             </div>
-        )
-    }else{
+        );
+    } else {
         return (
             <input
                 type={props.type}
@@ -198,10 +194,7 @@ export default function Input(props: InputProps){
                 name={props.name}
                 placeholder={props.placeholder}
                 id={props.id}
-                className={classNames(
-                    baseClasses,
-                    props.className
-                )}
+                className={classNames(baseClasses, props.className)}
             />
         );
     }

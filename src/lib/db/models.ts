@@ -4,51 +4,51 @@ import 'reflect-metadata';
 import { dbid, now, Timestamp } from './util';
 
 // Annotation to prevent field from being saved to Firestore
-function NonSerializable(target, propertyKey){
+function NonSerializable(target, propertyKey) {
     Reflect.defineMetadata('isNonSerializable', true, target, propertyKey);
 }
 
-function isNonSerializable<T>(instance: T, propertyKey: string){
+function isNonSerializable<T>(instance: T, propertyKey: string) {
     return !!Reflect.getMetadata('isNonSerializable', instance, propertyKey);
 }
 
 // Annotation to prevent field from being returned by Firestore
-function Hidden(target, propertyKey){
+function Hidden(target, propertyKey) {
     Reflect.defineMetadata('Hidden', true, target, propertyKey);
 }
 
-function isHidden<T>(instance: T, propertyKey: string){
+function isHidden<T>(instance: T, propertyKey: string) {
     return !!Reflect.getMetadata('Hidden', instance, propertyKey);
 }
 
 // Generic object type
-type AnyObject = {[key: string]: any};
+type AnyObject = { [key: string]: any };
 
 export class Model {
     @NonSerializable
     id?: string = dbid();
 
     // Creates a new model instance to force re-render in setState methods
-    protected newInstance() : this {
+    protected newInstance(): this {
         return Object.assign(Object.create(Object.getPrototypeOf(this)), this);
     }
 
-    serialize() : AnyObject {
+    serialize(): AnyObject {
         let serialized: AnyObject = {};
 
-        for(let key in this){
-            if(!isNonSerializable(this, key)){
+        for (let key in this) {
+            if (!isNonSerializable(this, key)) {
                 let val: AnyObject = this[key];
 
-                if(Array.isArray(val)){
+                if (Array.isArray(val)) {
                     const arr = [];
-                    for(let elem of val){
-                        if(elem instanceof Model) elem = elem.serialize();
+                    for (let elem of val) {
+                        if (elem instanceof Model) elem = elem.serialize();
                         arr.push(elem);
                     }
 
                     val = arr;
-                }else if(val instanceof Model){
+                } else if (val instanceof Model) {
                     val = val.serialize();
                 }
 
@@ -60,12 +60,12 @@ export class Model {
     }
 
     // Equivalent to {...this, ...params} in standard objects
-    concat(params: Partial<Model>){
+    concat(params: Partial<Model>) {
         Object.assign(this, params);
     }
 
     // Same as concat but returns a new model instance to force re-render
-    with(params: Partial<Model>) : this {
+    with(params: Partial<Model>): this {
         this.concat(params);
         return this.newInstance();
     }
@@ -74,7 +74,7 @@ export class Model {
 export enum UserRole {
     ADVISOR = 'ADVISOR',
     STUDENT = 'STUDENT',
-    ADMIN = 'ADMIN'
+    ADMIN = 'ADMIN',
 }
 
 export class Permission extends Model {
@@ -85,15 +85,15 @@ export class Permission extends Model {
     @NonSerializable
     awaiting_delete?: boolean;
 
-    concat(params: Partial<Permission>){
+    concat(params: Partial<Permission>) {
         super.concat(params);
     }
 
-    with(params: Partial<Permission>) : this {
+    with(params: Partial<Permission>): this {
         return super.with(params);
     }
 
-    constructor(params: Partial<Permission>){
+    constructor(params: Partial<Permission>) {
         super();
         this.concat(params);
     }
@@ -112,24 +112,24 @@ export class User extends Model {
     shared_with?: Permission[] = [];
     shared_with_email?: string[] = [];
 
-    serialize() : AnyObject {
-        if(this.shared_with){
+    serialize(): AnyObject {
+        if (this.shared_with) {
             // Auto-generate index array for easier queries
-            this.shared_with_email = this.shared_with.map(permission => permission.email);
+            this.shared_with_email = this.shared_with.map((permission) => permission.email);
         }
 
         return super.serialize();
     }
 
-    concat(params: Partial<User>){
+    concat(params: Partial<User>) {
         super.concat(params);
     }
 
-    with(params: Partial<User>) : this {
+    with(params: Partial<User>): this {
         return super.with(params);
     }
 
-    constructor(params: Partial<User>){
+    constructor(params: Partial<User>) {
         super();
         this.concat(params);
     }
@@ -144,15 +144,15 @@ export class FileCollection extends Model {
     @NonSerializable
     web_view: string;
 
-    concat(params: Partial<FileCollection>){
+    concat(params: Partial<FileCollection>) {
         super.concat(params);
     }
 
-    with(params: Partial<FileCollection>) : this {
+    with(params: Partial<FileCollection>): this {
         return super.with(params);
     }
 
-    constructor(params: Partial<FileCollection>){
+    constructor(params: Partial<FileCollection>) {
         super();
         this.concat(params);
     }
@@ -180,15 +180,15 @@ export class Artifact extends Model {
     @NonSerializable
     awaiting_delete?: boolean;
 
-    concat(params: Partial<Artifact>){
+    concat(params: Partial<Artifact>) {
         super.concat(params);
     }
 
-    with(params: Partial<Artifact>) : this {
+    with(params: Partial<Artifact>): this {
         return super.with(params);
     }
 
-    constructor(params: Partial<Artifact>){
+    constructor(params: Partial<Artifact>) {
         super();
         this.concat(params);
     }
@@ -204,19 +204,19 @@ export class Post extends Model {
 
     // Temporary field to indicate the post hasn't been saved
     @NonSerializable
-    awaiting_save?: boolean
+    awaiting_save?: boolean;
 
-    concat(params: Partial<Post>){
+    concat(params: Partial<Post>) {
         super.concat(params);
     }
 
-    with(params: Partial<Post>) : this {
+    with(params: Partial<Post>): this {
         return super.with(params);
     }
 
-    constructor(params: Partial<Post>, creating?: boolean){
+    constructor(params: Partial<Post>, creating?: boolean) {
         super();
-        creating ? this.concat({...params, created_at: now()}) : this.concat(params);
+        creating ? this.concat({ ...params, created_at: now() }) : this.concat(params);
     }
 }
 
@@ -230,16 +230,16 @@ export class Comment extends Model {
     @NonSerializable
     awaiting_save?: boolean;
 
-    concat(params: Partial<Comment>){
+    concat(params: Partial<Comment>) {
         super.concat(params);
     }
 
-    with(params: Partial<Comment>) : this {
+    with(params: Partial<Comment>): this {
         return super.with(params);
     }
 
-    constructor(params: Partial<Comment>, creating?: boolean){
+    constructor(params: Partial<Comment>, creating?: boolean) {
         super();
-        creating ? this.concat({...params, created_at: now()}) : this.concat(params);
+        creating ? this.concat({ ...params, created_at: now() }) : this.concat(params);
     }
 }

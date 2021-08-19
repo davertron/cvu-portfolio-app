@@ -3,6 +3,6 @@
 import { Authorization } from '../../lib/authorization';
 import Collection from './[id]';
 
-export default function NewCollection(){
-    return <Collection authorization={Authorization.USER} creating/>
+export default function NewCollection() {
+    return <Collection authorization={Authorization.USER} creating />;
 }

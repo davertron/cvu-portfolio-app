@@ -2,7 +2,6 @@ import { UserRole } from '../db/models';
 import auth from 'next-auth';
 
 declare module 'next-auth' {
-
     interface Session {
         user: {
             id: string;
@@ -14,11 +13,10 @@ declare module 'next-auth' {
                 name: string;
             };
             role: UserRole;
-        },
+        };
         accessToken: string;
         expires: string;
         firebaseToken: string;
         error?: any;
     }
-
 }
