@@ -31,89 +31,93 @@ interface LayoutProps extends Props, Parent {
 const developerKey = process.env.NEXT_PUBLIC_API_KEY;
 const clientId = process.env.NEXT_PUBLIC_OAUTH_CLIENT_ID;
 
-export default function Layout(props: LayoutProps){
+export default function Layout(props: LayoutProps) {
     const [session, loading] = useSession();
     const [initialized, setInitialized] = useState(false);
     const router = useRouter();
 
-    function apiLoader(accessToken: string){
+    function apiLoader(accessToken: string) {
         return () => {
-            for(let gapi of props.gapis){
+            for (let gapi of props.gapis) {
                 window.gapi.load(gapi);
             }
 
             window.gapi.load('client:auth2', () => {
-                window.gapi.client.init({
-                    apiKey: developerKey,
-                    clientId: clientId,
-                    scope: 'https://www.googleapis.com/auth/drive'
-                }).then(() => {
-                    window.gapi.client.load('drive', 'v3', () => {
-                        if(props.onGapisLoad) props.onGapisLoad();
-                        setInitialized(true);
+                window.gapi.client
+                    .init({
+                        apiKey: developerKey,
+                        clientId: clientId,
+                        scope: 'https://www.googleapis.com/auth/drive',
+                    })
+                    .then(() => {
+                        window.gapi.client.load('drive', 'v3', () => {
+                            if (props.onGapisLoad) props.onGapisLoad();
+                            setInitialized(true);
+                        });
                     });
-                });
             });
-        }
+        };
     }
 
     useEffect(() => {
-        if(!loading && initialized === false && (props.authorization != Authorization.SHARED || (props.author && props.authorLoaded))){
+        if (
+            !loading &&
+            initialized === false &&
+            (props.authorization != Authorization.SHARED || (props.author && props.authorLoaded))
+        ) {
             setInitialized(null);
 
             const authState = useAuth(props.authorization, session, props.author);
 
-            if(session){
+            // TODO: This is probably where the error is coming from
+            if (session) {
                 db.setCredentials(session.firebaseToken);
             }
 
-            if(!authState.success){
+            if (!authState.success) {
                 router.push(authState.redirect);
             }
 
-            if(props.gapis && session){
+            if (props.gapis && session) {
                 const loadApis = apiLoader(session.accessToken);
 
-                if(window.google){
+                if (window.google) {
                     loadApis();
-                }else{
+                } else {
                     loadScript('https://apis.google.com/js/api.js', loadApis);
                 }
-            }else{
+            } else {
                 setInitialized(true);
             }
         }
 
         //set progress bar state
-        if(initialized === false || loading) NProgress.start();
-        if(initialized) NProgress.done();
+        if (initialized === false || loading) NProgress.start();
+        if (initialized) NProgress.done();
     }, [loading, props.author, props.authorLoaded, initialized]);
 
-    const head = <Head><title>{props.title || 'MyPortfolio'}</title></Head>;
+    const head = (
+        <Head>
+            <title>{props.title || 'MyPortfolio'}</title>
+        </Head>
+    );
 
-    if(loading){
+    if (loading) {
         return head;
-    }else if(!initialized){
+    } else if (!initialized) {
         return (
             <ErrorBoundary>
                 {head}
-                <Nav/>
-                <div style={{height: '50vh'}}>
-                </div>
+                <Nav />
+                <div style={{ height: '50vh' }}></div>
             </ErrorBoundary>
         );
-    }else{
+    } else {
         return (
             <ErrorBoundary>
                 {head}
-                <Nav/>
-                <div
-                    className={classNames(
-                        'font-light',
-                        !props.noPadding && 'px-7 py-6',
-                        props.className
-                    )}
-                >
+                <Nav />
+                <div className={classNames('font-light', !props.noPadding && 'px-7 py-6', props.className)}>
                     {props.children}
                 </div>
             </ErrorBoundary>

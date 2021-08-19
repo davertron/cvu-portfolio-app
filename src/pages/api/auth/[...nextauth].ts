@@ -3,26 +3,27 @@ import { User } from '../../../lib/db/models';
 import NextAuth, { Session } from 'next-auth';
 import Providers from 'next-auth/providers';
 
-async function refreshAccessToken(token){
+async function refreshAccessToken(token) {
     try {
-        const url = 'https://oauth2.googlepis.com/token?' +
+        const url =
+            'https://oauth2.googlepis.com/token?' +
             new URLSearchParams({
                 client_id: process.env.NEXT_PUBLIC_OAUTH_CLIENT_ID,
                 client_secret: process.env.OAUTH_CLIENT_SECRET,
-                grant_type: "refresh_token",
-                refresh_token: token.refreshToken
+                grant_type: 'refresh_token',
+                refresh_token: token.refreshToken,
             });
 
         const res = await fetch(url, {
             headers: {
-                'Content-Type': 'application/x-www-form-urlencoded'
+                'Content-Type': 'application/x-www-form-urlencoded',
             },
-            method: 'POST'
+            method: 'POST',
         });
 
         const refreshed = await res.json();
 
-        if(!res.ok){
+        if (!res.ok) {
             throw refreshed;
         }
 
@@ -30,73 +31,73 @@ async function refreshAccessToken(token){
             ...token,
             accessToken: refreshed.access_token,
             accessTokenExpires: Date.now() + refreshed.expires_in * 1000,
-            refreshToken: refreshed.refresh_token || token.refreshToken
-        }
-    }catch(e){
+            refreshToken: refreshed.refresh_token || token.refreshToken,
+        };
+    } catch (e) {
         return {
             ...token,
-            error: 'RefreshAccessTokenError'
-        }
+            error: 'RefreshAccessTokenError',
+        };
     }
 }
 
 export default NextAuth({
-
     providers: [
         Providers.Google({
-            clientId: process.env.OAUTH_CLIENT_ID,
+            clientId: process.env.NEXT_PUBLIC_OAUTH_CLIENT_ID,
             clientSecret: process.env.OAUTH_CLIENT_SECRET,
-            authorizationUrl: 'https://accounts.google.com/o/oauth2/v2/auth?prompt=consent&access_type=offline&response_type=code',
-            scope: 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile'
-        })
+            authorizationUrl:
+                'https://accounts.google.com/o/oauth2/v2/auth?prompt=consent&access_type=offline&response_type=code',
+            scope: 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile',
+        }),
     ],
 
     callbacks: {
-        async jwt(token, user, account){
-            if(account && user){
+        async jwt(token, user, account) {
+            if (account && user) {
                 return {
                     accessToken: account.accessToken,
                     accessTokenExpires: Date.now() + account.expires_in * 1000,
                     refreshToken: account.refresh_token,
-                    user
+                    user,
                 };
             }
 
-            if(Date.now() < (token.accessTokenExpires as number)){
+            if (Date.now() < (token.accessTokenExpires as number)) {
                 return token;
             }
 
             return refreshAccessToken(token);
         },
 
-        async session(session: Session, token: Session){
+        async session(session: Session, token: Session) {
             session.user = token.user;
             const accessToken = token.accessToken as string;
 
             const snapshot = await db.users.where('email', '==', session.user.email).get();
             let user: User;
 
-            if(snapshot.empty){
+            if (snapshot.empty) {
                 user = new User({
                     name: session.user.name,
                     email: session.user.email.toLowerCase().trim(),
-                    bio_pic: {url: session.user.image as string, name: null},
-                    image: session.user.image
+                    bio_pic: { url: session.user.image as string, name: null },
+                    image: session.user.image,
                 });
 
                 await db.users.doc(user.id).set(user);
-            }else{
+            } else {
                 user = snapshot.docs[0].data();
 
                 // Update avatar if necessary
-                if(user.image != session.user.image){
-                    user = user.with({image: session.user.image});
+                if (user.image != session.user.image) {
+                    user = user.with({ image: session.user.image });
                     await db.users.doc(user.id).set(user);
                 }
             }
 
             session.firebaseToken = await db.createToken(user.id, {
-                role: user.role
+                role: user.role,
             });
 
             session.user.id = user.id;
@@ -106,6 +107,6 @@ export default NextAuth({
             session.error = token.error;
 
             return Promise.resolve(session);
-        }
-    }
+        },
+    },
 });
