@@ -41,7 +41,8 @@ export default function Collection(props: CollectionProps){
     const router = useRouter();
     const { id } = router.query;
     const showInputs = props.creating || editing;
-    const owned = session && (collection?.author_id == session.user?.id || props.creating);
+    const inDrive = !!collection.web_view;
+    const owned = session && (collection?.author_id == session.user?.id || props.creating) && inDrive;
 
     const removeArtifact = (aid: string) => {
         return () => {
@@ -244,8 +245,15 @@ export default function Collection(props: CollectionProps){
                                 </div>
                                 :
                                 <div className="text-center">
-                                    <h1 className="font-bold text-2xl py-2">{collection?.title}</h1>
-                                    {(!owned && user?.name) && <h2 className="text-gray-100 text-lg py-2">{user.name}</h2>}
+                                    <h1
+                                        className={classNames(
+                                            'font-bold text-2xl py-2',
+                                            !inDrive && 'text-red-200'
+                                        )}
+                                    >
+                                        {collection?.title}
+                                    </h1>
+                                    {(!owned && user?.name && session.user.id != collection.author_id) && <h2 className="text-gray-100 text-lg py-2">{user.name}</h2>}
                                 </div>
                             }
                         </div>
@@ -263,9 +271,9 @@ export default function Collection(props: CollectionProps){
                                 </Picker>
                                 :
                                 <>
-                                    <Cta icon={<MdOpenInNew/>} href={collection?.web_view || '#'} target="_blank" className="mx-2" invert>
+                                    {inDrive && <Cta icon={<MdOpenInNew/>} href={collection?.web_view || '#'} target="_blank" className="mx-2" invert>
                                         Open in drive
-                                    </Cta>
+                                    </Cta>}
                                     <Cta icon={<CgFeed/>} href={'/blog/' + collection?.author_id + '?tags=' + collection?.id} className="mx-2" invert>
                                         Tagged posts
                                     </Cta>
@@ -443,7 +451,13 @@ function CollectionArtifact(props: ArtifactProps){
                 </div>
                 <div className="bg-gray-100 px-4 py-3 rounded-b text-gray-600 flex items-start">
                     {thumbnail && <img src={artifact?.icon} className="w-auto h-5 pr-3 pt-1"/>}
-                    <div ><a href={artifact?.web_view} target="_blank">{artifact?.title}</a></div>
+                    <div>
+                        {artifact?.web_view ?
+                            <a href={artifact?.web_view} target="_blank">{artifact?.title}</a>
+                            :
+                            <span className="text-red-300 italic">{artifact?.title}</span>
+                        }
+                    </div>
                 </div>
             </div>
         </div>

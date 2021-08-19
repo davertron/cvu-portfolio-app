@@ -10,7 +10,8 @@ import {
     HiOutlinePresentationChartBar,
     HiOutlineTerminal,
     HiOutlineGlobe,
-    HiOutlineVideoCamera
+    HiOutlineVideoCamera,
+    HiOutlineExclamation
 } from 'react-icons/hi';
 
 export const fileIndicators = {
@@ -78,5 +79,10 @@ export const fileIndicators = {
         from: 'orange-400',
         to: 'orange-600',
         icon: HiOutlineVideoCamera
+    },
+    'error': {
+        from: 'pink-400',
+        to: 'red-600',
+        icon: HiOutlineExclamation
     }
 }
