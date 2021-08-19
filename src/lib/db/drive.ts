@@ -62,22 +62,30 @@ export default class DriveDb {
     artifacts: DriveHandler<Artifact> = {
 
         load: DriveDb.exec_safe(async (artifact: Artifact) => {
-            const snapshot = await this.client.drive.files.get({
-                fileId: artifact.drive_id,
-                fields: '*'//'name,type,iconLink,thumbnailLink,webViewLink,mimeType,description'
-            });
-            const metadata = snapshot.result;
-            // Increase default thumbnail size
-            const thumbnail = metadata.thumbnailLink ? metadata.thumbnailLink.replace('s220', 's500') : '';
-            console.log(metadata)
-            if(metadata){
+            try {
+                const snapshot = await this.client.drive.files.get({
+                    fileId: artifact.drive_id,
+                    fields: '*'//'name,type,iconLink,thumbnailLink,webViewLink,mimeType,description'
+                });
+                const metadata = snapshot.result;
+                // Increase default thumbnail size
+                const thumbnail = metadata.thumbnailLink ? metadata.thumbnailLink.replace('s220', 's500') : '';
+
+                if(metadata){
+                    return artifact.with({
+                        title: metadata.name,
+                        icon: metadata.iconLink,
+                        thumbnail: thumbnail,
+                        web_view: metadata.webViewLink,
+                        mimeType: metadata.mimeType,
+                        description: metadata.description || ''
+                    });
+                }
+            }catch(_e){
                 return artifact.with({
-                    title: metadata.name,
-                    icon: metadata.iconLink,
-                    thumbnail: thumbnail,
-                    web_view: metadata.webViewLink,
-                    mimeType: metadata.mimeType,
-                    description: metadata.description || ''
+                    title: 'Artifact not found',
+                    mimeType: '.error',
+                    description: `Could not find file with id '${artifact.drive_id}'. Did you delete it from Drive?`
                 });
             }
 
@@ -158,11 +166,23 @@ export default class DriveDb {
         }),
 
         load: DriveDb.exec_safe(async ([collection, artifacts]: [FileCollection, Artifact[]]) : Promise<[FileCollection, Artifact[]]> => {
-            const snapshot = await this.client.drive.files.get({
-                fileId: collection.drive_id,
-                fields: 'name,webViewLink'
-            });
-            const metadata = snapshot.result;
+            let snapshot;
+            let metadata;
+
+            try {
+                snapshot = await this.client.drive.files.get({
+                    fileId: collection.drive_id,
+                    fields: 'name,webViewLink'
+                });
+                metadata = snapshot.result;
+            }catch(_e){
+                return [
+                    collection.with({
+                        title: 'Collection not found in Drive'
+                    }),
+                    []
+                ]
+            }
 
             artifacts = await Promise.all(artifacts.map(
                 async artifact => await this.artifacts.load(artifact)

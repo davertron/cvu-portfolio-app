@@ -4,7 +4,7 @@ import Error from '../../lib/components/Error';
 import Button, { Cta } from '../../lib/components/Button';
 import db from '../../lib/db/client';
 import { User, FileCollection } from '../../lib/db/models';
-import { loadStarted, merge } from '../../lib/util';
+import { loadStarted, merge, classNames } from '../../lib/util';
 import { useSession } from 'next-auth/client';
 import { useState, useEffect } from 'react';
 import { MdOpenInNew, MdAdd, MdClose } from 'react-icons/md';
@@ -127,7 +127,12 @@ export default function Collection(){
                                     <div className="m-4 bg-purple-100 shadow rounded w-56">
                                         <div className="text-gray-600 px-4 pt-1 pb-2">
                                             <div className="flex items-start">
-                                                <p className="text-lg font-bold my-2 h-full flex-grow">
+                                                <p
+                                                    className={classNames(
+                                                        'text-lg font-bold my-2 h-full flex-grow',
+                                                        !collection.web_view && 'text-red-300'
+                                                    )}
+                                                >
                                                     {collection.title}
                                                 </p>
                                                 {posts[collection.id] == 0 && <Button
