@@ -45,8 +45,8 @@ export default function Layout(props: LayoutProps) {
             window.gapi.load('client:auth2', () => {
                 window.gapi.client
                     .init({
-                        apiKey: developerKey,
-                        clientId: clientId,
+                        apiKey: clientId,
+                        clientId,
                         scope: 'https://www.googleapis.com/auth/drive',
                     })
                     .then(() => {

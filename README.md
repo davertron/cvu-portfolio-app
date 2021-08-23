@@ -103,3 +103,11 @@ For additional information on configuring Google Cloud Services (OAuth, Drive AP
     -   Make sure Oauth client has deployment urls set up properly
         -   Note: Sometimes this means you have to clear browser cache (i.e. for incorrect js origin error or redirect_uri changes)
 -   Enable the Google Drive API for your app in the Google Cloud developer console: https://console.cloud.google.com/
+
+## Useful Resources
+
+-   [Firestore Security Rules](https://firebase.google.com/docs/firestore/security/get-started)
+-   [Firebase Auth with Custom Tokens](https://firebase.google.com/docs/auth/web/custom-auth)
+-   [Minting Firebase Tokens with Admin SDK](https://firebase.google.com/docs/auth/admin/create-custom-tokens)
+-   [Google Drive API Reference](https://developers.google.com/drive/api/v3/reference)
+-   [Next-Auth Documentation](https://next-auth.js.org/getting-started/introduction)
