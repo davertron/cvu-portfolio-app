@@ -99,10 +99,11 @@ For additional information on configuring Google Cloud Services (OAuth, Drive AP
     -   Configure permissions
 -   You need to download the service account private key from firebase and set is as the environment variable FIREBASE_SERVICE_ACCOUNT (strip out newlines, leave off surrounding quotes)
 -   Set up and configure Google Oauth via the Google Cloud developer console: https://console.cloud.google.com/
-    -   You need an Oauth 2.0 Client and a Service Account (Firebase may set this up for you automatically, I already had one in there after setting up Firestore)
+    -   You need an Oauth 2.0 Client and a Service Account (Firebase will set up your key for you automatically, I already had one in there after setting up Firestore, but you'll have to set up the Oauth stuff yourself)
     -   Make sure Oauth client has deployment urls set up properly
         -   Note: Sometimes this means you have to clear browser cache (i.e. for incorrect js origin error or redirect_uri changes)
 -   Enable the Google Drive API for your app in the Google Cloud developer console: https://console.cloud.google.com/
+-   Enable the Picker API for your app in the Google Cloud developer console: https://console.cloud.google.com/
 
 ## Useful Resources
 
