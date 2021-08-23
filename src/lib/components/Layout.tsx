@@ -28,7 +28,7 @@ interface LayoutProps extends Props, Parent {
     onGapisLoad?: () => void;
 }
 
-const developerKey = process.env.NEXT_PUBLIC_API_KEY;
+const apiKey = process.env.NEXT_PUBLIC_API_KEY;
 const clientId = process.env.NEXT_PUBLIC_OAUTH_CLIENT_ID;
 
 export default function Layout(props: LayoutProps) {
@@ -45,7 +45,7 @@ export default function Layout(props: LayoutProps) {
             window.gapi.load('client:auth2', () => {
                 window.gapi.client
                     .init({
-                        apiKey: clientId,
+                        apiKey,
                         clientId,
                         scope: 'https://www.googleapis.com/auth/drive',
                     })
