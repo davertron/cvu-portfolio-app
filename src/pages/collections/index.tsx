@@ -54,6 +54,7 @@ export default function Collection() {
 
             setDbLoaded(true);
         } catch (_e) {
+            console.error(_e);
             setError('There was an error loading your collections');
         }
     }
@@ -95,6 +96,7 @@ export default function Collection() {
                 setCollections((currentCollections) => currentCollections.filter((c) => c.id != collection.id));
             }
         } catch (_e) {
+            console.error(_e);
             setError('There was an error deleting the collection');
         }
     }
