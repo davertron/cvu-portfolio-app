@@ -234,10 +234,10 @@ export default function Collection(props: CollectionProps) {
                                         value={collection?.title || ''}
                                         name="title"
                                         options={[
-                                            'Creative and Practical Problem Solving',
-                                            'Clear and Effective Communication',
-                                            'Informed and Integrative Thinking',
-                                            'Self Direction',
+                                            'Identity',
+                                            'Connection',
+                                            'Direction',
+                                            'Proficiency'
                                         ]}
                                         customBg
                                     />
