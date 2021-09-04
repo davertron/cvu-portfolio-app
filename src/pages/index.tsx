@@ -4,6 +4,16 @@ import { useSession, signIn } from 'next-auth/client';
 import { CgGoogle } from 'react-icons/cg';
 import Image from 'next/image';
 
+// Uncomment this for down for maintenance behavior
+export async function getServerSideProps() {
+    return {
+        redirect: {
+            permanent: false,
+            destination: 'https://down-for-maintenance-ashen.vercel.app/',
+        }
+    }
+}
+
 export default function Index() {
     const [session, loading] = useSession();
 
