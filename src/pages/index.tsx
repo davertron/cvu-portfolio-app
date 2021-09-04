@@ -4,7 +4,6 @@ import { useSession, signIn } from 'next-auth/client';
 import { CgGoogle } from 'react-icons/cg';
 import Image from 'next/image';
 
-/*
 export default function Index() {
     const [session, loading] = useSession();
 
@@ -27,22 +26,6 @@ export default function Index() {
                         Continue with Google
                     </Cta>
                 )}
-            </div>
-        </Layout>
-    );
-}
-*/
-
-export default function Index() {
-    return (
-        <Layout noPadding>
-            <div className="text-center bg-gray-100 py-32">
-                <div className="py-3">
-                    <span className="text-8xl">🚧</span>
-                </div>
-                <h1 className="text-3xl text-gray-700 mb-10 mt-3">
-                    We're down for maintenance, please check back later.
-                </h1>
             </div>
         </Layout>
     );

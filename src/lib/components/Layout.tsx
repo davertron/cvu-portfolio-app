@@ -31,7 +31,6 @@ interface LayoutProps extends Props, Parent {
 const apiKey = process.env.NEXT_PUBLIC_API_KEY;
 const clientId = process.env.NEXT_PUBLIC_OAUTH_CLIENT_ID;
 
-/*
 export default function Layout(props: LayoutProps) {
     const [session, loading] = useSession();
     const [initialized, setInitialized] = useState(false);
@@ -124,25 +123,4 @@ export default function Layout(props: LayoutProps) {
             </ErrorBoundary>
         );
     }
-}
-*/
-
-export default function DisabledLayout(props: LayoutProps) {
-    const router = useRouter();
-
-    const head = (
-        <Head>
-            <title>{props.title || 'MyPortfolio'}</title>
-        </Head>
-    );
-
-    return (
-        <ErrorBoundary>
-            {head}
-            <Nav />
-            <div className={classNames('font-light', !props.noPadding && 'px-7 py-6', props.className)}>
-                {props.children}
-            </div>
-        </ErrorBoundary>
-    );
 }
