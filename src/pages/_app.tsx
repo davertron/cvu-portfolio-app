@@ -1,8 +1,10 @@
 import '../../styles/globals.css';
 import '../../styles/nprogress.css';
 import NProgress from 'nprogress';
-import { Provider } from 'next-auth/client';
+//import { Provider } from 'next-auth/client';
 import Head from 'next/head';
+
+const Provider = ({children, session}) => <div>{children}</div>;
 
 declare global {
     interface Window {

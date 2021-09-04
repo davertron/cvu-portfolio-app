@@ -13,6 +13,7 @@ import { MdClose, MdMenu, MdAdd } from 'react-icons/md';
 import { useSession, signOut } from 'next-auth/client';
 import Link from 'next/link';
 
+/*
 export default function Nav() {
     const [session, loading] = useSession();
     let nav: LinkProps[] = [];
@@ -51,6 +52,69 @@ export default function Nav() {
             ];
         }
     }
+
+    return (
+        <Disclosure as="nav" className="border-b border-gray-300">
+            {({ open }) => (
+                <>
+                    <div className="px-2 sm:px-6 lg:px-8">
+                        <div className="relative flex items-center justify-between h-16 max-w">
+                            <div className="absolute inset-y-0 right-0 flex items-center sm:hidden">
+                                <Disclosure.Button className="inline-flex items-center justify-center p-2 rounded-md text-gray-500 hover:text-indigo-500 focus:outline-none">
+                                    {open ? (
+                                        <MdClose className="block h-6 w-6" />
+                                    ) : (
+                                        <MdMenu className="block h-6 w-6" />
+                                    )}
+                                </Disclosure.Button>
+                            </div>
+                            <div className="flex items-center justify-end md:items-stretch md:justify-start">
+                                <div className="flex-shrink-0 flex items-center">
+                                    <Link href="/">
+                                        <a className="block flex flex-row items-center">
+                                            <div className="flex items-center">
+                                                <img className="h-8 w-auto" src="/img/logo.png" alt="MyPortfolio" />
+                                            </div>
+                                            <div>
+                                                <h1 className="block mx-4 text-xl text-gray-500">
+                                                    <span className="font-bold">My</span>Portfolio
+                                                </h1>
+                                            </div>
+                                        </a>
+                                    </Link>
+                                </div>
+                            </div>
+                            <div className="flex-1 flex items-center justify-center md:items-stretch md:justify-end">
+                                <div className="hidden sm:block sm:ml-6">
+                                    <div className="flex space-x-4">
+                                        {nav.map((item) => (
+                                            <NavLink key={item.children as string} {...item} />
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <Disclosure.Panel className="md:hidden">
+                        <div className="px-2 pt-2 pb-3 space-y-1">
+                            {nav.map((item) => (
+                                <DropdownLink key={item.children as string} {...item} />
+                            ))}
+                        </div>
+                    </Disclosure.Panel>
+                </>
+            )}
+        </Disclosure>
+    );
+}
+*/
+
+export default function Nav() {
+    let nav: LinkProps[] = [
+        { children: 'About', href: '/about' },
+        { children: 'Support', href: '/support' },
+    ];
 
     return (
         <Disclosure as="nav" className="border-b border-gray-300">
