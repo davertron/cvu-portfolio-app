@@ -1,4 +1,5 @@
 import firebase from 'firebase/app';
+import 'firebase/analytics';
 import Db from './base';
 import DriveDb from './drive';
 import { App, Firestore, Auth, StorageReference } from './util';
@@ -29,6 +30,10 @@ class ClientDb extends Db {
 
         this.storage = (filename: string) => this.bucket.child(filename);
         this.avatars = (filename: string) => this.bucket.child('avatars/' + filename);
+
+        if (global.window) {
+            firebase.analytics();
+        }
     }
 }
 
